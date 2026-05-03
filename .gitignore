@@ -1,0 +1,60 @@
+# Dependencias
+node_modules/
+.pnp
+.pnp.js
+
+# Build
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Entorno
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+.secrets.local
+*.secrets.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Prisma
+apps/api/prisma/*.db
+apps/api/prisma/migrations/dev*
+
+# Docker volumes
+postgres_data/
+redis_data/
+
+# Archivos de diseño (no van al repo de código)
+*.pen
+images/
+
+# Tarballs y dumps
+*.tar.gz
+*.zip
+*.dump
+*.sql.bak
+catalog-export.txt
+
+# Claude Code workspace
+.claude/projects/
+
+# Outputs locales
+*.tmp
+*.cache

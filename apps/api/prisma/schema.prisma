@@ -1,0 +1,733 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum Role {
+  ADMIN
+  RECEPTIONIST
+  TRAINER
+  CLIENT
+}
+
+enum TenantPlan {
+  FREE
+  BASIC
+  PRO
+}
+
+enum MembershipType {
+  MONTHLY
+  QUARTERLY
+  ANNUAL
+}
+
+enum PaymentMethod {
+  YAPE
+  BCP
+  CASH
+  TRANSFER
+  MERCADOPAGO
+}
+
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+}
+
+enum BookingStatus {
+  BOOKED
+  CANCELLED
+  ATTENDED
+}
+
+enum GamificationType {
+  STREAK
+  BADGE
+  CHALLENGE
+}
+
+// ============================================================
+// MODELOS
+// ============================================================
+
+model Tenant {
+  id        String     @id @default(cuid())
+  name      String
+  slug      String     @unique
+  logo      String?
+  phone     String?
+  email       String?
+  emailDomain String?  @map("email_domain")
+  address     String?
+  plan      TenantPlan @default(FREE)
+  isActive  Boolean    @default(true) @map("is_active")
+
+  // Permisos de POS por rol — admin puede toggle
+  trainerPosEnabled     Boolean @default(true) @map("trainer_pos_enabled")
+  receptionistPosEnabled Boolean @default(true) @map("receptionist_pos_enabled")
+
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  users              User[]
+  branches           Branch[]
+  members            Member[]
+  payments           Payment[]
+  checkIns           CheckIn[]
+  routines           Routine[]
+  exercises          Exercise[]
+  classes            Class[]
+  progressRecords    Progress[]
+  gamifications      Gamification[]
+  landingServices    LandingService[]
+  plans              Plan[]
+  facilities         Facility[]
+  amenities          Amenity[]
+  faqs               FAQ[]
+  landingContents    LandingContent[]
+  memberAchievements MemberAchievement[]
+  products           Product[]
+  brands             Brand[]
+  productCategories  ProductCategory[]
+  sales              Sale[]
+  muscleGroups       MuscleGroup[]
+  notifications      Notification[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String
+  passwordHash String    @map("password_hash")
+  role         String    @default("CLIENT")
+  firstName    String    @map("first_name")
+  lastName     String    @map("last_name")
+  phone        String?
+  avatar       String?
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  tenantId String @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  branchId String? @map("branch_id")
+  branch   Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  member              Member?
+  createdMembers      Member[]        @relation("memberCreatedBy")
+  createdPayments     Payment[]       @relation("paymentCreatedBy")
+  createdProgress     Progress[]      @relation("progressCreatedBy")
+  instructorOf        Class[]         @relation("instructor")
+  scannedCheckIns     CheckIn[]       @relation("scannedBy")
+  trainerRoutines     Routine[]       @relation("trainer")
+  salesBySeller       Sale[]          @relation("salesBySeller")
+
+  @@unique([email, tenantId])
+  @@index([tenantId])
+  @@index([email])
+  @@map("users")
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  name      String
+  address   String?
+  phone     String?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenantId String @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  users    User[]
+  members  Member[]
+  checkIns CheckIn[]
+  classes  Class[]
+  sales    Sale[]
+
+  @@index([tenantId])
+  @@map("branches")
+}
+
+model Member {
+  id               String         @id @default(cuid())
+  qrCode           String         @unique @map("qr_code")
+  membershipType   MembershipType @map("membership_type")
+  membershipStart  DateTime       @map("membership_start")
+  membershipEnd    DateTime       @map("membership_end")
+  isActive         Boolean        @default(true) @map("is_active")
+  emergencyContact String?        @map("emergency_contact")
+  emergencyPhone   String?        @map("emergency_phone")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  userId String @unique @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdById String? @map("created_by_id")
+  createdBy   User?   @relation("memberCreatedBy", fields: [createdById], references: [id])
+
+  tenantId String @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Sucursal "home" del cliente. Nullable: en gimnasios con 1 sola sucursal puede
+  // quedar vacío; en multi-sucursal se debe asignar.
+  branchId String? @map("branch_id")
+  branch   Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  payments        Payment[]
+  checkIns        CheckIn[]
+  routines        Routine[]
+  classBookings   ClassBooking[]
+  progressRecords Progress[]
+  achievements    MemberAchievement[]
+  sales           Sale[]
+
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([qrCode])
+  @@map("members")
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  amount      Float
+  method      PaymentMethod
+  reference   String?
+  proofUrl    String?       @map("proof_url")
+  status      PaymentStatus @default(PENDING)
+  periodStart DateTime      @map("period_start")
+  periodEnd   DateTime      @map("period_end")
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  memberId String @map("member_id")
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  createdById String? @map("created_by_id")
+  createdBy   User?   @relation("paymentCreatedBy", fields: [createdById], references: [id])
+
+  tenantId String @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([memberId])
+  @@index([tenantId, status])
+  @@index([status, createdAt])
+  @@map("payments")
+}
+
+model CheckIn {
+  id          String   @id @default(cuid())
+  timestamp   DateTime @default(now())
+  isDuplicate Boolean  @default(false) @map("is_duplicate")
+
+  memberId String @map("member_id")
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  branchId String @map("branch_id")
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  scannedById String @map("scanned_by_id")
+  scannedBy   User   @relation("scannedBy", fields: [scannedById], references: [id])
+
+  tenantId String @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([memberId])
+  @@index([tenantId, timestamp])
+  @@map("check_ins")
+}
+
+model Routine {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  trainerId String @map("trainer_id")
+  trainer   User   @relation("trainer", fields: [trainerId], references: [id])
+
+  memberId String @map("member_id")
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  tenantId String @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  days RoutineDay[]
+
+  @@index([tenantId])
+  @@index([memberId])
+  @@map("routines")
+}
+
+model RoutineDay {
+  id        String @id @default(cuid())
+  dayOfWeek Int    @map("day_of_week")
+
+  routineId String  @map("routine_id")
+  routine   Routine @relation(fields: [routineId], references: [id], onDelete: Cascade)
+
+  exercises RoutineExercise[]
+
+  @@map("routine_days")
+}
+
+model Exercise {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  imageUrl    String?  @map("image_url")
+  videoUrl    String?  @map("video_url")
+  muscleGroup String?  @map("muscle_group")
+  equipment   String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  tenantId String? @map("tenant_id")
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  routineExercises RoutineExercise[]
+
+  @@index([tenantId])
+  @@map("exercises")
+}
+
+// Catálogo de grupos musculares administrable por gimnasio.
+// Se comparte entre todas las sucursales del tenant. Exercise.muscleGroup sigue
+// siendo string libre para no romper datos previos; el matching es por nombre.
+model MuscleGroup {
+  id        String   @id @default(cuid())
+  name      String
+  icon      String?
+  order     Int      @default(0)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenantId String @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("muscle_groups")
+}
+
+// Notificaciones para el admin (cross-branch check-in, eventos del sistema, etc.).
+// type categoriza el origen para filtrar/agrupar; payload guarda contexto para el detalle.
+model Notification {
+  id        String   @id @default(cuid())
+  type      String   // ej: 'CROSS_BRANCH_CHECKIN'
+  title     String
+  message   String
+  payload   Json?
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  tenantId String @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, readAt])
+  @@index([tenantId, createdAt])
+  @@map("notifications")
+}
+
+model RoutineExercise {
+  id           String  @id @default(cuid())
+  sets         Int
+  reps         Int
+  weight       Float?
+  restSeconds  Int?    @map("rest_seconds")
+  order        Int     @default(0)
+  trainerNotes String? @map("trainer_notes")
+
+  routineDayId String     @map("routine_day_id")
+  routineDay   RoutineDay @relation(fields: [routineDayId], references: [id], onDelete: Cascade)
+
+  exerciseId String   @map("exercise_id")
+  exercise   Exercise @relation(fields: [exerciseId], references: [id])
+
+  @@map("routine_exercises")
+}
+
+model Class {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  imageUrl    String?  @map("image_url")
+  dayOfWeek   Int      @map("day_of_week")
+  startTime   String   @map("start_time")
+  endTime     String   @map("end_time")
+  maxCapacity Int      @map("max_capacity")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  instructorId String @map("instructor_id")
+  instructor   User   @relation("instructor", fields: [instructorId], references: [id])
+
+  tenantId String @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  branchId String? @map("branch_id")
+  branch   Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  bookings ClassBooking[]
+
+  @@index([tenantId])
+  @@map("classes")
+}
+
+model ClassBooking {
+  id        String        @id @default(cuid())
+  date      DateTime
+  status    BookingStatus @default(BOOKED)
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  classId String @map("class_id")
+  class   Class  @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  memberId String @map("member_id")
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@map("class_bookings")
+}
+
+model Progress {
+  id         String   @id @default(cuid())
+  date       DateTime @default(now())
+  weight     Float?
+  waist      Float?
+  chest      Float?
+  arms       Float?
+  legs       Float?
+  hips       Float?
+  bodyFat    Float?   @map("body_fat")
+  muscleMass Float?   @map("muscle_mass")
+  photoUrl   String?  @map("photo_url")
+  notes      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  memberId String @map("member_id")
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  createdById String? @map("created_by_id")
+  createdBy   User?   @relation("progressCreatedBy", fields: [createdById], references: [id])
+
+  tenantId String @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([memberId])
+  @@map("progress")
+}
+
+model Gamification {
+  id          String           @id @default(cuid())
+  name        String
+  type        GamificationType
+  description String?
+  iconUrl     String?          @map("icon_url")
+  condition   Json?
+  points      Int              @default(0)
+  isActive    Boolean          @default(true) @map("is_active")
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  tenantId String @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  achievements MemberAchievement[]
+
+  @@index([tenantId])
+  @@map("gamifications")
+}
+
+model MemberAchievement {
+  id         String   @id @default(cuid())
+  achievedAt DateTime @default(now()) @map("achieved_at")
+  progress   Json?
+
+  memberId String @map("member_id")
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  gamificationId String       @map("gamification_id")
+  gamification   Gamification @relation(fields: [gamificationId], references: [id], onDelete: Cascade)
+
+  tenantId String @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([memberId])
+  @@map("member_achievements")
+}
+
+// ============================================================
+// LANDING
+// ============================================================
+
+model LandingContent {
+  id        String   @id @default(cuid())
+  section   String
+  page      String
+  content   Json
+  order     Int      @default(0)
+  isActive  Boolean  @default(true) @map("is_active")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenantId String @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("landing_contents")
+}
+
+model LandingService {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  imageUrl    String?  @map("image_url")
+  iconName    String?  @map("icon_name")
+  order       Int      @default(0)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenantId String @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("landing_services")
+}
+
+model Plan {
+  id        String   @id @default(cuid())
+  name      String
+  price     Float
+  duration  Int
+  features  String[]
+  isPopular Boolean  @default(false) @map("is_popular")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenantId String @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("plans")
+}
+
+model Facility {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  photos      String[]
+  order       Int      @default(0)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenantId String @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("facilities")
+}
+
+model Amenity {
+  id       String  @id @default(cuid())
+  name     String
+  iconName String? @map("icon_name")
+  isActive Boolean @default(true) @map("is_active")
+
+  tenantId String @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("amenities")
+}
+
+model FAQ {
+  id        String   @id @default(cuid())
+  question  String
+  answer    String
+  order     Int      @default(0)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenantId String @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("faqs")
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  imageUrl      String?  @map("image_url")
+  publicPrice   Float    @map("public_price")
+  memberPrice   Float?   @map("member_price")
+  stock         Int?
+  isActive      Boolean  @default(true) @map("is_active")
+  showInLanding Boolean  @default(true) @map("show_in_landing")
+  order         Int      @default(0)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Mantenemos los strings como cache/legacy para fallback
+  brand    String?
+  category String?
+
+  brandId    String?          @map("brand_id")
+  brandRef   Brand?           @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  categoryId String?          @map("category_id")
+  catRef     ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  tenantId String @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  saleItems SaleItem[]
+
+  @@index([tenantId])
+  @@index([brandId])
+  @@index([categoryId])
+  @@map("products")
+}
+
+model Brand {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String
+  logoUrl   String?  @map("logo_url")
+  isActive  Boolean  @default(true) @map("is_active")
+  order     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenantId String @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  products Product[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+  @@map("brands")
+}
+
+model ProductCategory {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String
+  iconName  String?  @map("icon_name")
+  isActive  Boolean  @default(true) @map("is_active")
+  order     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenantId String @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  products Product[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+  @@map("product_categories")
+}
+
+enum SalePaymentMethod {
+  CASH
+  YAPE
+  PLIN
+  BCP
+  CARD
+  OTHER
+  MIXED
+}
+
+model Sale {
+  id            String            @id @default(cuid())
+  total         Float
+  paidAmount    Float             @default(0) @map("paid_amount")
+  changeAmount  Float             @default(0) @map("change_amount")
+  paymentMethod SalePaymentMethod @map("payment_method")
+  notes         String?
+  customerName  String?           @map("customer_name") // walk-in: cliente sin membresía
+
+  // Quien vendió (admin/recepción/trainer)
+  sellerId String @map("seller_id")
+  seller   User   @relation("salesBySeller", fields: [sellerId], references: [id])
+
+  // Si la venta es a un miembro del gym
+  memberId String? @map("member_id")
+  member   Member? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  // Sucursal donde se hizo la venta. Nullable para soportar gimnasios sin sucursales
+  // y data histórica previa a multi-sucursal.
+  branchId String? @map("branch_id")
+  branch   Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  items    SaleItem[]
+  payments SalePayment[]
+
+  tenantId  String   @map("tenant_id")
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([sellerId])
+  @@index([memberId])
+  @@index([createdAt])
+  @@map("sales")
+}
+
+model SalePayment {
+  id        String            @id @default(cuid())
+  method    SalePaymentMethod
+  amount    Float
+  reference String?           // referencia opcional (ej: nro Yape, últimos 4 tarjeta)
+  createdAt DateTime          @default(now()) @map("created_at")
+
+  saleId String @map("sale_id")
+  sale   Sale   @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@index([saleId])
+  @@map("sale_payments")
+}
+
+model SaleItem {
+  id            String  @id @default(cuid())
+  quantity      Int
+  unitPrice     Float   @map("unit_price")
+  subtotal      Float
+  isMemberPrice Boolean @default(false) @map("is_member_price")
+
+  saleId String @map("sale_id")
+  sale   Sale   @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  productId   String  @map("product_id")
+  product     Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  productName String  @map("product_name") // snapshot por si se borra el producto
+
+  @@index([saleId])
+  @@index([productId])
+  @@map("sale_items")
+}

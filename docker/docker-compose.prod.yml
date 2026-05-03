@@ -1,0 +1,102 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: gymfit-db
+    restart: unless-stopped
+    ports:
+      - '5434:5432'
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gymfit}
+      POSTGRES_USER: ${POSTGRES_USER:-gymfit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST_AUTH_METHOD: md5
+      POSTGRES_INITDB_ARGS: "--auth-host=md5"
+    volumes:
+      - gymfit_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-gymfit}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gymfit-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: gymfit-redis
+    restart: unless-stopped
+    ports:
+      - '6380:6379'
+    command: redis-server --appendonly yes
+    volumes:
+      - gymfit_redis:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gymfit-net
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    container_name: gymfit-api
+    restart: unless-stopped
+    ports:
+      - '3011:3011'
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-gymfit}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-gymfit}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-15m}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-7d}
+      API_PORT: 3011
+      FRONTEND_URL: ${FRONTEND_URL}
+      NODE_ENV: production
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      CLOUDINARY_FOLDER: ${CLOUDINARY_FOLDER:-gym-app}
+      MP_PUBLIC_KEY: ${MP_PUBLIC_KEY}
+      MP_ACCESS_TOKEN: ${MP_ACCESS_TOKEN}
+      API_URL: ${API_URL}
+    volumes:
+      - gymfit_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - gymfit-net
+
+  web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.web
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    container_name: gymfit-web
+    restart: unless-stopped
+    ports:
+      - '3010:3010'
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      API_INTERNAL_URL: http://api:3011
+    depends_on:
+      - api
+    networks:
+      - gymfit-net
+
+volumes:
+  gymfit_pgdata:
+  gymfit_redis:
+  gymfit_uploads:
+
+networks:
+  gymfit-net:
+    driver: bridge
