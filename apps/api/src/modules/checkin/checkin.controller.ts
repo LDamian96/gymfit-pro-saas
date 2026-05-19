@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { CheckinService } from './checkin.service';
 import { CreateCheckinDto } from './dto/create-checkin.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -30,5 +30,27 @@ export class CheckinController {
     @Query('branchId') branchId?: string,
   ) {
     return this.checkinService.getTodayCheckIns(tenantId, userId, role, branchId);
+  }
+
+  // Histórico de check-ins de un miembro. Lo usa el cliente para ver su asistencia.
+  @Get('member/:memberId')
+  @Roles('CLIENT', 'ADMIN', 'TRAINER', 'RECEPTIONIST')
+  findByMember(
+    @Param('memberId') memberId: string,
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('userId') userId: string,
+    @CurrentUser('role') role: string,
+  ) {
+    return this.checkinService.findByMember(memberId, tenantId, userId, role);
+  }
+
+  // Último check-in del usuario actual — usado por el toaster del cliente.
+  @Get('my-last')
+  @Roles('CLIENT', 'ADMIN', 'TRAINER', 'RECEPTIONIST')
+  findMyLast(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('userId') userId: string,
+  ) {
+    return this.checkinService.findMyLast(tenantId, userId);
   }
 }

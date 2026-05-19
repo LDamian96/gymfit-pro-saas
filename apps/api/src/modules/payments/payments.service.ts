@@ -28,6 +28,9 @@ export class PaymentsService {
         memberId: dto.memberId,
         tenantId,
         createdById,
+        // Pagos creados por admin/recepción son cobrados en mano → CONFIRMED.
+        // PENDING queda para flujos online (MercadoPago) que esperan webhook.
+        status: 'CONFIRMED',
       },
       include: {
         member: { include: { user: true } },

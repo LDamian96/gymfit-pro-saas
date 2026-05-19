@@ -11,19 +11,17 @@ export class GamificationService {
    * Lista todas las gamificaciones activas de un tenant.
    */
   async findAll(tenantId: string) {
-    const gamifications = await this.prisma.gamification.findMany({
+    return this.prisma.gamification.findMany({
       where: { tenantId, isActive: true },
       orderBy: { createdAt: 'desc' },
     });
-
-    return { success: true, data: gamifications };
   }
 
   /**
    * Crea una nueva gamificación para el tenant.
    */
   async create(dto: CreateGamificationDto, tenantId: string) {
-    const gamification = await this.prisma.gamification.create({
+    return this.prisma.gamification.create({
       data: {
         name: dto.name,
         type: dto.type,
@@ -34,8 +32,6 @@ export class GamificationService {
         tenantId,
       },
     });
-
-    return { success: true, data: gamification, message: 'Gamificación creada exitosamente' };
   }
 
   /**
@@ -59,7 +55,7 @@ export class GamificationService {
   async update(id: string, dto: UpdateGamificationDto, tenantId: string) {
     await this.findOne(id, tenantId);
 
-    const gamification = await this.prisma.gamification.update({
+    return this.prisma.gamification.update({
       where: { id },
       data: {
         name: dto.name,
@@ -70,8 +66,6 @@ export class GamificationService {
         condition: dto.condition ? JSON.parse(JSON.stringify(dto.condition)) : undefined,
       },
     });
-
-    return { success: true, data: gamification, message: 'Gamificación actualizada exitosamente' };
   }
 
   /**
@@ -85,7 +79,7 @@ export class GamificationService {
       data: { isActive: false },
     });
 
-    return { success: true, data: null, message: 'Gamificación eliminada exitosamente' };
+    return { id };
   }
 
   /**
@@ -101,7 +95,7 @@ export class GamificationService {
       throw new NotFoundException('Miembro no encontrado en este gimnasio');
     }
 
-    const achievements = await this.prisma.memberAchievement.findMany({
+    return this.prisma.memberAchievement.findMany({
       where: { memberId, tenantId },
       include: {
         gamification: {
@@ -110,7 +104,5 @@ export class GamificationService {
       },
       orderBy: { achievedAt: 'desc' },
     });
-
-    return { success: true, data: achievements };
   }
 }

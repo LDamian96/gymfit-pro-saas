@@ -20,7 +20,7 @@ export class ProgressService {
       throw new NotFoundException('Miembro no encontrado en este gimnasio');
     }
 
-    const progress = await this.prisma.progress.create({
+    return this.prisma.progress.create({
       data: {
         memberId: dto.memberId,
         tenantId,
@@ -43,8 +43,6 @@ export class ProgressService {
         },
       },
     });
-
-    return { success: true, data: progress, message: 'Progreso registrado exitosamente' };
   }
 
   /**
@@ -60,12 +58,10 @@ export class ProgressService {
       throw new NotFoundException('Miembro no encontrado en este gimnasio');
     }
 
-    const records = await this.prisma.progress.findMany({
+    return this.prisma.progress.findMany({
       where: { memberId, tenantId },
       orderBy: { date: 'desc' },
     });
-
-    return { success: true, data: records };
   }
 
   async remove(id: string, tenantId: string) {
@@ -74,6 +70,6 @@ export class ProgressService {
     });
     if (!record) throw new NotFoundException('Registro no encontrado');
     await this.prisma.progress.delete({ where: { id } });
-    return { success: true, message: 'Registro eliminado' };
+    return { id };
   }
 }

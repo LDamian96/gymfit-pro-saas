@@ -70,9 +70,26 @@ export class RoutinesService {
     });
   }
 
-  async findByMember(memberId: string, tenantId: string) {
+  async findByMember(memberId: string | undefined, tenantId: string, userId: string, role: string) {
+    // Seguridad: si rol incluye CLIENT (y no es staff), forzar a sus propias rutinas.
+    // Esto previene que un CLIENT vea rutinas de otros llamando sin memberId o con uno ajeno.
+    const userRoles = (role || '').split(',').map((r) => r.trim());
+    const isStaff = userRoles.some((r) => ['ADMIN', 'TRAINER', 'RECEPTIONIST'].includes(r));
+    let effectiveMemberId = memberId;
+    if (!isStaff && userRoles.includes('CLIENT')) {
+      const member = await this.prisma.member.findFirst({
+        where: { userId, tenantId },
+        select: { id: true },
+      });
+      // Si no es miembro de este tenant, retornar vacío (no leak data).
+      if (!member) return [];
+      effectiveMemberId = member.id;
+    }
+    // Staff sin memberId obtiene vacío — no exponer todas las rutinas del tenant.
+    if (!effectiveMemberId) return [];
+
     return this.prisma.routine.findMany({
-      where: { memberId, tenantId, isActive: true },
+      where: { memberId: effectiveMemberId, tenantId, isActive: true },
       include: {
         trainer: { select: { firstName: true, lastName: true } },
         days: {

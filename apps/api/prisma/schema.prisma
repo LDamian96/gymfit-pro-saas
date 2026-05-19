@@ -76,6 +76,10 @@ model Tenant {
   trainerPosEnabled     Boolean @default(true) @map("trainer_pos_enabled")
   receptionistPosEnabled Boolean @default(true) @map("receptionist_pos_enabled")
 
+  // Permisos de Membresías (matricular/cobrar) por rol — admin puede toggle
+  trainerMembershipEnabled      Boolean @default(false) @map("trainer_membership_enabled")
+  receptionistMembershipEnabled Boolean @default(true)  @map("receptionist_membership_enabled")
+
   createdAt DateTime   @default(now()) @map("created_at")
   updatedAt DateTime   @updatedAt @map("updated_at")
 
@@ -97,6 +101,7 @@ model Tenant {
   landingContents    LandingContent[]
   memberAchievements MemberAchievement[]
   products           Product[]
+  productStocks      ProductStock[]
   brands             Brand[]
   productCategories  ProductCategory[]
   sales              Sale[]
@@ -154,11 +159,12 @@ model Branch {
   tenantId String @map("tenant_id")
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  users    User[]
-  members  Member[]
-  checkIns CheckIn[]
-  classes  Class[]
-  sales    Sale[]
+  users         User[]
+  members       Member[]
+  checkIns      CheckIn[]
+  classes       Class[]
+  sales         Sale[]
+  productStocks ProductStock[]
 
   @@index([tenantId])
   @@map("branches")
@@ -173,6 +179,11 @@ model Member {
   isActive         Boolean        @default(true) @map("is_active")
   emergencyContact String?        @map("emergency_contact")
   emergencyPhone   String?        @map("emergency_phone")
+  // Límite de visitas por semana (lun-dom). Null = ilimitado. Ej: interdiario = 3, diario = 7.
+  weeklyVisitLimit Int?           @map("weekly_visit_limit")
+  // Tipo de frecuencia elegido al matricular: DAILY | INTERDAILY | CUSTOM | null (ilimitado).
+  // Solo informativo/UI — el control real lo hace weeklyVisitLimit en el check-in.
+  membershipFrequency String?     @map("membership_frequency")
   createdAt        DateTime       @default(now()) @map("created_at")
   updatedAt        DateTime       @updatedAt @map("updated_at")
 
@@ -605,11 +616,35 @@ model Product {
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   saleItems SaleItem[]
+  stocks    ProductStock[]
 
   @@index([tenantId])
   @@index([brandId])
   @@index([categoryId])
   @@map("products")
+}
+
+// Stock por sucursal. Cada producto tiene una fila por cada sede donde existe.
+// El campo Product.stock queda como legacy/total agregado (no se usa para venta).
+model ProductStock {
+  id        String   @id @default(cuid())
+  stock     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  productId String  @map("product_id")
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  branchId String @map("branch_id")
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  tenantId String @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, branchId])
+  @@index([tenantId])
+  @@index([branchId])
+  @@map("product_stocks")
 }
 
 model Brand {

@@ -41,7 +41,7 @@ export class StaffService {
   }
 
   async findAll(tenantId: string, query: QueryStaffDto) {
-    const { page = 1, limit = 10, search, role } = query;
+    const { page = 1, limit = 10, search, role, branchId } = query;
     const skip = (page - 1) * limit;
 
     // Filtrar solo staff (RECEPTIONIST y TRAINER)
@@ -50,6 +50,9 @@ export class StaffService {
       deletedAt: null,
       role: role ? role : { in: ['RECEPTIONIST', 'TRAINER'] },
     };
+
+    // Filtro por sucursal (selector del panel admin)
+    if (branchId) where.branchId = branchId;
 
     // Busqueda por nombre o email
     if (search) {

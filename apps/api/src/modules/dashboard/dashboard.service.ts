@@ -10,15 +10,30 @@ export class DashboardService {
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const [activeMembers, totalRevenue, checkInsToday, dueSoon, pendingPayments, todayPayments, todayPaymentCount] = await Promise.all([
+    const [
+      activeMembers,
+      paymentsThisMonth,
+      salesThisMonth,
+      checkInsToday,
+      dueSoon,
+      pendingPayments,
+      todayPayments,
+      todaySales,
+      todayPaymentCount,
+    ] = await Promise.all([
       // Miembros activos con membresía vigente
       this.prisma.member.count({
         where: { tenantId, isActive: true, membershipEnd: { gte: now } },
       }),
-      // Ingresos del mes (pagos confirmados este mes)
+      // Pagos confirmados este mes (membresías)
       this.prisma.payment.aggregate({
         where: { tenantId, status: 'CONFIRMED', createdAt: { gte: startOfMonth } },
         _sum: { amount: true },
+      }),
+      // Ventas POS de este mes — antes no se contaban en totalRevenue.
+      this.prisma.sale.aggregate({
+        where: { tenantId, createdAt: { gte: startOfMonth } },
+        _sum: { total: true },
       }),
       // Check-ins de hoy
       this.prisma.checkIn.count({
@@ -41,25 +56,41 @@ export class DashboardService {
         _sum: { amount: true },
         _count: true,
       }),
-      // Pagos de hoy (monto)
+      // Pagos confirmados de hoy (membresías)
       this.prisma.payment.aggregate({
         where: { tenantId, status: 'CONFIRMED', createdAt: { gte: startOfDay } },
         _sum: { amount: true },
       }),
-      // Cantidad de pagos hoy
+      // Ventas POS de hoy
+      this.prisma.sale.aggregate({
+        where: { tenantId, createdAt: { gte: startOfDay } },
+        _sum: { total: true },
+      }),
+      // Cantidad de pagos hoy (membresías + ventas)
       this.prisma.payment.count({
         where: { tenantId, createdAt: { gte: startOfDay } },
       }),
     ]);
 
+    // Total real = membresías cobradas + ventas POS del mes.
+    const monthPaymentAmount = paymentsThisMonth._sum.amount || 0;
+    const monthSalesAmount = salesThisMonth._sum.total || 0;
+    const todayPaymentAmount = todayPayments._sum.amount || 0;
+    const todaySalesAmount = todaySales._sum.total || 0;
+
     return {
       activeMembers,
-      totalRevenue: totalRevenue._sum.amount || 0,
+      totalRevenue: monthPaymentAmount + monthSalesAmount,
+      // Desglose para el dashboard: cuánto vino de membresías vs POS.
+      monthMembershipRevenue: monthPaymentAmount,
+      monthShopRevenue: monthSalesAmount,
       checkInsToday,
       dueSoon,
       pendingAmount: pendingPayments._sum.amount || 0,
       pendingCount: pendingPayments._count || 0,
-      todayAmount: todayPayments._sum.amount || 0,
+      todayAmount: todayPaymentAmount + todaySalesAmount,
+      todayMembershipAmount: todayPaymentAmount,
+      todayShopAmount: todaySalesAmount,
       todayPaymentCount,
     };
   }

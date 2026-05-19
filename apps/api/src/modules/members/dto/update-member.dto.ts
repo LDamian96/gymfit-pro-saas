@@ -33,4 +33,8 @@ export class UpdateMemberDto {
   @IsOptional()
   @IsString()
   branchId?: string;
+
+  // Límite de visitas por semana. null/0 = sin límite.
+  @IsOptional()
+  weeklyVisitLimit?: number | null;
 }

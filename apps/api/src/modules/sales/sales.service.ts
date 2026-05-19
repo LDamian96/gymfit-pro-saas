@@ -175,11 +175,40 @@ export class SalesService {
     }
     total = +total.toFixed(2);
 
-    // Validar stock total agregado por producto
-    for (const [pid, qty] of qtyByProduct) {
-      const p = productMap.get(pid)!;
-      if (p.stock != null && p.stock < qty) {
-        throw new BadRequestException(`Stock insuficiente para "${p.name}" (disponible ${p.stock})`);
+    // Decidir branchId final ANTES de validar stock (el stock es por sede).
+    // - Admin: respeta lo que mande el body, o cae en la sucursal del seller.
+    // - Recepción/Trainer: siempre la sucursal del seller.
+    const isAdmin = roles.includes('ADMIN');
+    const finalBranchId = isAdmin
+      ? (data.branchId ?? seller.branchId ?? null)
+      : (seller.branchId ?? null);
+
+    // Validar stock POR SEDE. Si hay sede, usar ProductStock; si no (gym 1 sede sin
+    // sucursal asignada), fallback al stock legacy del producto.
+    const stockByProduct = new Map<string, number | null>();
+    if (finalBranchId) {
+      const stockRows = await this.prisma.productStock.findMany({
+        where: { branchId: finalBranchId, productId: { in: productIds } },
+      });
+      const stockRowMap = new Map(stockRows.map((s) => [s.productId, s.stock]));
+      for (const [pid, qty] of qtyByProduct) {
+        const p = productMap.get(pid)!;
+        const sedeStock = stockRowMap.get(pid);
+        const available = sedeStock ?? p.stock ?? null;
+        stockByProduct.set(pid, available);
+        if (available != null && available < qty) {
+          throw new BadRequestException(
+            `Stock insuficiente para "${p.name}" en esta sede (disponible ${available})`,
+          );
+        }
+      }
+    } else {
+      for (const [pid, qty] of qtyByProduct) {
+        const p = productMap.get(pid)!;
+        stockByProduct.set(pid, p.stock ?? null);
+        if (p.stock != null && p.stock < qty) {
+          throw new BadRequestException(`Stock insuficiente para "${p.name}" (disponible ${p.stock})`);
+        }
       }
     }
 
@@ -194,14 +223,6 @@ export class SalesService {
     }
     const changeAmount = +(paidAmount - total).toFixed(2);
     const primaryMethod: SalePaymentMethod = paymentsArr.length > 1 ? 'MIXED' : paymentsArr[0].method;
-
-    // 6.5) Decidir branchId final.
-    // - Admin: respeta lo que mande el body, o cae en la sucursal del seller.
-    // - Recepción/Trainer: siempre la sucursal del seller (no pueden vender por otra).
-    const isAdmin = roles.includes('ADMIN');
-    const finalBranchId = isAdmin
-      ? (data.branchId ?? seller.branchId ?? null)
-      : (seller.branchId ?? null);
 
     // 7) Crear venta + items + payments + decrementar stock en transacción atómica
     const sale = await this.prisma.$transaction(async (tx) => {
@@ -245,15 +266,23 @@ export class SalesService {
         },
       });
 
-      // Decrementar stock por producto (sumando qty si hay duplicados)
+      // Decrementar stock por producto. Si hay sede → ProductStock de esa sede.
+      // Si no hay sede → stock legacy del producto. También se mantiene el
+      // total legacy Product.stock sincronizado para reportes.
       for (const [pid, qty] of qtyByProduct) {
-        const p = productMap.get(pid)!;
-        if (p.stock != null) {
-          await tx.product.update({
-            where: { id: pid },
+        const available = stockByProduct.get(pid);
+        if (available == null) continue;
+        if (finalBranchId) {
+          await tx.productStock.updateMany({
+            where: { productId: pid, branchId: finalBranchId },
             data: { stock: { decrement: qty } },
           });
         }
+        // Mantener total legacy en sincronía (no baja de 0 conceptualmente).
+        await tx.product.update({
+          where: { id: pid },
+          data: { stock: { decrement: qty } },
+        });
       }
 
       return created;

@@ -24,13 +24,14 @@ export class MembersController {
   constructor(private readonly membersService: MembersService) {}
 
   @Post()
-  @Roles('ADMIN', 'RECEPTIONIST')
+  @Roles('ADMIN', 'RECEPTIONIST', 'TRAINER')
   create(
     @Body() dto: CreateMemberDto,
     @CurrentUser('tenantId') tenantId: string,
     @CurrentUser('userId') userId: string,
+    @CurrentUser('role') role: string,
   ) {
-    return this.membersService.create(dto, tenantId, userId);
+    return this.membersService.create(dto, tenantId, userId, role);
   }
 
   @Get()

@@ -26,8 +26,12 @@ export class RoutinesController {
   findByMember(
     @Query('memberId') memberId: string,
     @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('userId') userId: string,
+    @CurrentUser('role') role: string,
   ) {
-    return this.routinesService.findByMember(memberId, tenantId);
+    // Seguridad: si es CLIENT, ignorar memberId del query y usar el suyo (lookup por userId).
+    // ADMIN/TRAINER deben pasar memberId explícito.
+    return this.routinesService.findByMember(memberId, tenantId, userId, role);
   }
 
   @Get(':id')

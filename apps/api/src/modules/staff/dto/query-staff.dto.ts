@@ -22,4 +22,8 @@ export class QueryStaffDto {
   @IsOptional()
   @IsEnum(StaffRole)
   role?: StaffRole;
+
+  @IsOptional()
+  @IsString()
+  branchId?: string;
 }

@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
@@ -32,7 +33,24 @@ export class MembersService {
     return end;
   }
 
-  async create(dto: CreateMemberDto, tenantId: string, createdById?: string) {
+  async create(dto: CreateMemberDto, tenantId: string, createdById?: string, role?: string) {
+    // Permiso por rol: ADMIN siempre; RECEP/TRAINER según setting del tenant.
+    if (role) {
+      const roles = role.split(',').map((r) => r.trim());
+      if (!roles.includes('ADMIN')) {
+        const settings = await this.prisma.tenant.findUnique({
+          where: { id: tenantId },
+          select: { trainerMembershipEnabled: true, receptionistMembershipEnabled: true },
+        });
+        const allowed =
+          (roles.includes('RECEPTIONIST') && !!settings?.receptionistMembershipEnabled) ||
+          (roles.includes('TRAINER') && !!settings?.trainerMembershipEnabled);
+        if (!allowed) {
+          throw new ForbiddenException('No tienes permiso para matricular miembros');
+        }
+      }
+    }
+
     // Verificar email duplicado en el mismo tenant
     const existing = await this.prisma.user.findFirst({
       where: { email: dto.email, tenantId, deletedAt: null },
@@ -45,6 +63,14 @@ export class MembersService {
     const now = new Date();
     const membershipEnd = this.getMembershipEnd(dto.membershipType, now);
     const qrCode = `GYM-${randomUUID().substring(0, 8).toUpperCase()}`;
+
+    // Frecuencia → weeklyVisitLimit. DAILY=7, INTERDAILY=3, CUSTOM=lo que mande,
+    // UNLIMITED/undefined = null (sin límite).
+    const freq = dto.membershipFrequency;
+    let weeklyVisitLimit: number | null = null;
+    if (freq === 'DAILY') weeklyVisitLimit = 7;
+    else if (freq === 'INTERDAILY') weeklyVisitLimit = 3;
+    else if (freq === 'CUSTOM') weeklyVisitLimit = dto.weeklyVisitLimit ?? null;
 
     // Crear User + Member en transacción
     const result = await this.prisma.$transaction(async (tx) => {
@@ -68,6 +94,8 @@ export class MembersService {
           membershipType: dto.membershipType,
           membershipStart: now,
           membershipEnd,
+          weeklyVisitLimit,
+          membershipFrequency: freq ?? null,
           branchId: dto.branchId,
           createdById,
         },
@@ -191,6 +219,9 @@ export class MembersService {
       if (dto.emergencyPhone !== undefined) memberData.emergencyPhone = dto.emergencyPhone;
       if (dto.isActive !== undefined) memberData.isActive = dto.isActive;
       if (dto.branchId !== undefined) memberData.branchId = dto.branchId || null;
+      if (dto.weeklyVisitLimit !== undefined) {
+        memberData.weeklyVisitLimit = dto.weeklyVisitLimit && dto.weeklyVisitLimit > 0 ? dto.weeklyVisitLimit : null;
+      }
       if (dto.membershipType) {
         memberData.membershipType = dto.membershipType;
         memberData.membershipStart = new Date();
@@ -253,6 +284,7 @@ export class MembersService {
       emergencyPhone: member.emergencyPhone,
       branchId: member.branchId ?? null,
       branch: member.branch ?? null,
+      weeklyVisitLimit: member.weeklyVisitLimit ?? null,
       createdAt: member.createdAt,
     };
   }

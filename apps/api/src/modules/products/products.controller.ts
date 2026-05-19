@@ -36,11 +36,13 @@ export class ProductsController {
     @Query('category') category?: string,
     @Query('brand') brand?: string,
     @Query('onlyActive') onlyActive?: string,
+    @Query('branchId') branchId?: string,
   ) {
     return this.productsService.findAll(tenantId, {
       onlyActive: onlyActive === 'true',
       category,
       brand,
+      branchId: branchId || undefined,
     });
   }
 
@@ -60,6 +62,23 @@ export class ProductsController {
     @CurrentUser('tenantId') tenantId: string,
   ) {
     return this.productsService.update(id, body, tenantId);
+  }
+
+  @Post(':id/transfer-stock')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  transferStock(
+    @Param('id') id: string,
+    @Body() body: { fromBranchId: string; toBranchId: string; qty: number },
+    @CurrentUser('tenantId') tenantId: string,
+  ) {
+    return this.productsService.transferStock(
+      tenantId,
+      id,
+      body.fromBranchId,
+      body.toBranchId,
+      Number(body.qty),
+    );
   }
 
   @Delete(':id')
