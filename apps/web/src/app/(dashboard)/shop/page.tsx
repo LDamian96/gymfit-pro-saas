@@ -46,6 +46,10 @@ export default function ShopAdminPage() {
   const [filter, setFilter] = useState('');
   const [filterBrand, setFilterBrand] = useState('');
   const [filterVisibility, setFilterVisibility] = useState<'all' | 'public' | 'private'>('all');
+  // Filtro por estado de stock en la sede seleccionada.
+  const [filterStock, setFilterStock] = useState<'all' | 'low' | 'out'>('all');
+  // Umbral "por acabarse": <= 5 unidades.
+  const LOW_STOCK = 5;
   const [posSettings, setPosSettings] = useState<{
     trainerPosEnabled: boolean;
     receptionistPosEnabled: boolean;
@@ -237,11 +241,15 @@ export default function ShopAdminPage() {
     if (filterBrand && p.brandId !== filterBrand) return false;
     if (filterVisibility === 'public' && !p.showInLanding) return false;
     if (filterVisibility === 'private' && p.showInLanding) return false;
+    // Filtro por stock (de la sede activa; p.stock ya viene mapeado por sede)
+    const st = p.stock ?? null;
+    if (filterStock === 'out' && !(st != null && st <= 0)) return false;
+    if (filterStock === 'low' && !(st != null && st > 0 && st <= LOW_STOCK)) return false;
     return true;
   });
 
   // Reset paginación al cambiar filtros
-  useEffect(() => { setPage(1); }, [filter, filterBrand, filterVisibility]);
+  useEffect(() => { setPage(1); }, [filter, filterBrand, filterVisibility, filterStock]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
   const pageItems = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
@@ -338,6 +346,19 @@ export default function ShopAdminPage() {
             </button>
           ))}
         </div>
+        <div className="flex bg-card rounded-xl border border-border p-1 gap-1">
+          {[
+            { v: 'all' as const, label: 'Stock: todo' },
+            { v: 'low' as const, label: 'Por acabarse' },
+            { v: 'out' as const, label: 'Sin stock' },
+          ].map((opt) => (
+            <button key={opt.v} onClick={() => setFilterStock(opt.v)}
+              className={`px-3 py-1.5 rounded-lg text-[12px] font-bold transition-colors ${filterStock === opt.v ? 'text-white' : 'text-muted-foreground'}`}
+              style={filterStock === opt.v ? { background: opt.v === 'out' ? '#DC2626' : opt.v === 'low' ? '#D97706' : '#FF5A1F' } : {}}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Contador */}
@@ -412,7 +433,17 @@ export default function ShopAdminPage() {
                       </td>
                       <td className="px-3 py-2 text-right hidden lg:table-cell">
                         {p.stock != null ? (
-                          <span className={`text-[11px] font-bold ${p.stock <= 5 ? 'text-red-500' : p.stock <= 15 ? 'text-amber-500' : ''}`}>{p.stock}</span>
+                          p.stock <= 0 ? (
+                            <span className="inline-flex items-center text-[10px] font-black px-2 py-1 rounded uppercase tracking-wide" style={{ background: 'rgba(220,38,38,0.15)', color: '#DC2626' }}>
+                              Agotado
+                            </span>
+                          ) : p.stock <= LOW_STOCK ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded uppercase tracking-wide" style={{ background: 'rgba(217,119,6,0.15)', color: '#D97706' }}>
+                              {p.stock} · bajo
+                            </span>
+                          ) : (
+                            <span className="text-[12px] font-bold tabular-nums">{p.stock}</span>
+                          )
                         ) : <span className="text-[11px] text-muted-foreground">∞</span>}
                       </td>
                       <td className="px-3 py-2">
@@ -471,7 +502,13 @@ export default function ShopAdminPage() {
                     {p.brand && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,90,31,0.12)', color: '#FF5A1F' }}>{p.brand}</span>}
                     <span className="text-[10px] font-black" style={{ color: '#FF5A1F' }}>S/ {p.publicPrice.toFixed(0)}</span>
                     {p.memberPrice != null && <span className="text-[10px] text-muted-foreground">· S/ {p.memberPrice.toFixed(0)} m</span>}
-                    {p.stock != null && <span className={`text-[10px] ${p.stock <= 5 ? 'text-red-500 font-bold' : 'text-muted-foreground'}`}>· {p.stock}u</span>}
+                    {p.stock != null && (
+                      p.stock <= 0
+                        ? <span className="text-[10px] font-black" style={{ color: '#DC2626' }}>· AGOTADO</span>
+                        : p.stock <= LOW_STOCK
+                          ? <span className="text-[10px] font-black" style={{ color: '#D97706' }}>· {p.stock}u bajo</span>
+                          : <span className="text-[10px] text-muted-foreground">· {p.stock}u</span>
+                    )}
                     {!p.showInLanding && <span className="text-[9px] font-black px-1 py-0.5 rounded uppercase" style={{ background: 'rgba(115,115,115,0.15)', color: '#737373' }}>Oculto</span>}
                   </div>
                 </div>

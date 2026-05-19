@@ -12,7 +12,7 @@ import { Header } from '@/components/dashboard/header';
 import { api, cachedGet, invalidateCache, unwrap } from '@/lib/api';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/auth-store';
-import { Lock, Building } from 'lucide-react';
+import { Lock, Building, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useBranches } from '@/hooks/use-branches';
 
 interface Product {
@@ -280,8 +280,12 @@ export default function POSPage() {
   const PER_PAGE = 12;
 
   const matchedProducts = useMemo(() => {
-    if (!activeCategory) return filteredProducts;
-    return filteredProducts.filter((p) => p.category === activeCategory);
+    // En POS solo se venden productos CON stock en la sede activa.
+    // stock === null = sin control de stock (gym sin sucursales) → sí se muestra.
+    // stock <= 0 = agotado en esta sede → NO aparece para vender.
+    const withStock = filteredProducts.filter((p) => p.stock == null || p.stock > 0);
+    if (!activeCategory) return withStock;
+    return withStock.filter((p) => p.category === activeCategory);
   }, [filteredProducts, activeCategory]);
 
   // Reset página al cambiar filtros/búsqueda
@@ -601,6 +605,28 @@ export default function POSPage() {
                   </button>
                 );
               })}
+            </div>
+          )}
+
+          {/* Paginación desktop — sin esto solo se veían los primeros 12 */}
+          {!loading && totalPages > 1 && (
+            <div className="flex items-center justify-between pt-2">
+              <p className="text-[11px] font-black uppercase tracking-wider tabular-nums text-muted-foreground">
+                {(page - 1) * PER_PAGE + 1}–{Math.min(page * PER_PAGE, matchedProducts.length)} de {matchedProducts.length}
+              </p>
+              <div className="flex items-center gap-1.5">
+                <button disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="press w-9 h-9 rounded-xl flex items-center justify-center disabled:opacity-30 bg-card border border-border">
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span className="text-[12px] font-black tabular-nums px-2">
+                  {page} <span className="text-muted-foreground">/ {totalPages}</span>
+                </span>
+                <button disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  className="press w-9 h-9 rounded-xl flex items-center justify-center disabled:opacity-30 bg-card border border-border">
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           )}
         </div>
