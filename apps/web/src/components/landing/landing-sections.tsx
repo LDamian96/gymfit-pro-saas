@@ -2,24 +2,29 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, QrCode, Activity, Dumbbell, MessageSquare, Check, Smartphone, BarChart3, ShoppingBag, Package, ShieldCheck, Clock4, MapPin, TrendingUp } from 'lucide-react';
 
-const CDN = 'https://res.cloudinary.com/dnqkkd5nj/image/upload';
+// Todas las imágenes desde el CDN de Unsplash (hotlink permitido, entrega
+// WebP/AVIF con auto=format). IDs verificados y estables, tono oscuro/gimnasio
+// coherente con la estética dark + naranja. Reemplaza Cloudinary roto.
+const uimg = (id: string, w = 1100) =>
+  `https://images.unsplash.com/${id}?auto=format&fit=crop&crop=entropy&w=${w}&q=80`;
+
 const IMG = {
-  coach: `${CDN}/v1773893250/gym-app/landing/coach.jpg`,
-  pesas: `${CDN}/v1773893252/gym-app/landing/zone-pesas.jpg`,
-  cardio: `${CDN}/v1773893254/gym-app/landing/zone-cardio.jpg`,
-  personal: `${CDN}/v1773893265/gym-app/landing/personal-training.jpg`,
-  funcional: `${CDN}/v1773893267/gym-app/landing/zone-funcional.jpg`,
+  coach: uimg('photo-1571388208497-71bedc66e932'),    // coach con cliente
+  pesas: uimg('photo-1581009146145-b5ef050c2e1e'),     // zona de pesas
+  cardio: uimg('photo-1538805060514-97d9cc17730c'),    // zona cardio
+  personal: uimg('photo-1571388208497-71bedc66e932'),  // entrenamiento personal
+  funcional: uimg('photo-1517963879433-6ad2b056d712'), // funcional / kettlebell
 };
 
 const UNSPLASH = {
-  appPhone: 'https://images.unsplash.com/photo-1605296830714-cdc3aa9e54df?w=900&q=85',
-  groupGym: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&q=85',
-  athlete: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1200&q=85',
-  facilityMain: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=1400&q=85',
-  facility1: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=900&q=85',
-  facility2: 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=900&q=85',
-  facility3: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=900&q=85',
-  facility4: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=900&q=85',
+  appPhone: uimg('photo-1556817411-31ae72fa3ea0', 900),     // app fitness en teléfono
+  groupGym: uimg('photo-1534438327276-14e5300c3a48', 1400),  // gimnasio dramático
+  athlete: uimg('photo-1571019613454-1cb2f99b2d8b', 1200),   // atleta entrenando
+  facilityMain: uimg('photo-1540497077202-7c8a3999166f', 1400), // interior gym
+  facility1: uimg('photo-1517836357463-d25dfeac3438', 900),  // entrenamiento
+  facility2: uimg('photo-1538805060514-97d9cc17730c', 900),  // cardio
+  facility3: uimg('photo-1574680096145-d05b474e2155', 900),  // interior limpio
+  facility4: uimg('photo-1518310383802-640c2de311b2', 900),  // spinning
 };
 
 // === Eyebrow reutilizable ===

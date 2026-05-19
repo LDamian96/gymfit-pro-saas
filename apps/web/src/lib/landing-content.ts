@@ -87,30 +87,42 @@ export interface LandingData {
 }
 
 /**
- * Imágenes de fallback cuando no hay imageUrl/photos en la DB
+ * Imágenes de fallback cuando no hay imageUrl/photos en la DB.
+ *
+ * Servidas desde el CDN de Unsplash (images.unsplash.com), que permite hotlink
+ * y entrega WebP/AVIF optimizado con `auto=format`. Tono oscuro/cinematográfico
+ * coherente con la estética dark + naranja del landing. IDs estables y curados
+ * temáticamente (pesas, cardio, coach, boxing, yoga, spinning, vestidores).
  */
-const CDN = 'https://res.cloudinary.com/dnqkkd5nj/image/upload';
+const U = 'https://images.unsplash.com';
+
+// Helper: arma una URL de Unsplash optimizada. `crop=entropy` centra en el
+// sujeto; calidad 80 + auto-format mantiene la imagen ligera para LCP.
+function ux(id: string, w = 1600): string {
+  return `${U}/${id}?auto=format&fit=crop&crop=entropy&w=${w}&q=80`;
+}
 
 export const FALLBACK_IMAGES = {
-  hero: `${CDN}/v1773893224/gym-app/landing/hero-gym.jpg`,
+  // Gimnasio oscuro y dramático — funciona de fondo del hero con overlay.
+  hero: ux('photo-1534438327276-14e5300c3a48', 2000),
   services: [
-    `${CDN}/v1773893265/gym-app/landing/personal-training.jpg`,
-    `${CDN}/v1773893260/gym-app/landing/boxing.jpg`,
-    `${CDN}/v1773893256/gym-app/landing/zone-yoga.jpg`,
-    `${CDN}/v1773893254/gym-app/landing/zone-cardio.jpg`,
-    `${CDN}/v1773893267/gym-app/landing/zone-funcional.jpg`,
-    `${CDN}/v1773893252/gym-app/landing/zone-pesas.jpg`,
+    ux('photo-1571388208497-71bedc66e932'), // entrenamiento personal
+    ux('photo-1549719386-74dfcbf7dbed'),     // boxing
+    ux('photo-1588286840104-8957b019727f'),  // yoga
+    ux('photo-1538805060514-97d9cc17730c'),  // cardio / cinta
+    ux('photo-1517963879433-6ad2b056d712'),  // funcional / kettlebell
+    ux('photo-1581009146145-b5ef050c2e1e'),  // zona de pesas
   ],
   facilities: [
-    `${CDN}/v1773893252/gym-app/landing/zone-pesas.jpg`,
-    `${CDN}/v1773893254/gym-app/landing/zone-cardio.jpg`,
-    `${CDN}/v1773893267/gym-app/landing/zone-funcional.jpg`,
-    `${CDN}/v1773893256/gym-app/landing/zone-yoga.jpg`,
-    `${CDN}/v1773893258/gym-app/landing/spinning.jpg`,
-    `${CDN}/v1773893269/gym-app/landing/vestidores.jpg`,
+    ux('photo-1581009146145-b5ef050c2e1e'),  // zona de pesas
+    ux('photo-1538805060514-97d9cc17730c'),  // zona cardio
+    ux('photo-1517963879433-6ad2b056d712'),  // zona funcional
+    ux('photo-1588286840104-8957b019727f'),  // yoga
+    ux('photo-1518310383802-640c2de311b2'),  // spinning
+    ux('photo-1574680096145-d05b474e2155'),  // vestidores / interior limpio
   ],
-  coach: `${CDN}/v1773893250/gym-app/landing/coach.jpg`,
-  pesas: `${CDN}/v1773893252/gym-app/landing/zone-pesas.jpg`,
+  coach: ux('photo-1571388208497-71bedc66e932'),  // coach con cliente
+  pesas: ux('photo-1581009146145-b5ef050c2e1e'),  // zona de pesas
 };
 
 /**

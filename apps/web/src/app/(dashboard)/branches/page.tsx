@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Pencil, Trash2, Building, MapPin, Phone, Users, ScanLine, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Building, MapPin, Phone, Users, ScanLine, X, Power } from 'lucide-react';
 import { Header } from '@/components/dashboard/header';
 import { api, cachedGet, invalidateCache, unwrap } from '@/lib/api';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
@@ -96,6 +96,18 @@ export default function BranchesPage() {
     }
   };
 
+  // Reactivar una sucursal inactiva (o desactivar una activa).
+  const handleToggleActive = async (b: Branch) => {
+    try {
+      await api.patch(`/api/v1/branches/${b.id}`, { isActive: !b.isActive });
+      invalidateCache('/api/v1/branches');
+      toast.success(b.isActive ? 'Sucursal desactivada' : 'Sucursal activada');
+      fetchBranches();
+    } catch {
+      toast.error('Error al cambiar estado');
+    }
+  };
+
   return (
     <div className="md:space-y-6">
       <div className="reveal-up">
@@ -145,12 +157,18 @@ export default function BranchesPage() {
                   </div>
                 </div>
                 <div className="flex gap-1 shrink-0">
-                  <button onClick={() => openEdit(b)} className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors">
+                  <button onClick={() => openEdit(b)} className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors" title="Editar">
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
-                  <button onClick={() => setDeleteId(b.id)} className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg transition-colors">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+                  {b.isActive ? (
+                    <button onClick={() => setDeleteId(b.id)} className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg transition-colors" title="Desactivar">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  ) : (
+                    <button onClick={() => handleToggleActive(b)} className="p-1.5 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950 rounded-lg transition-colors" title="Activar sucursal">
+                      <Power className="h-3.5 w-3.5" strokeWidth={2.5} />
+                    </button>
+                  )}
                 </div>
               </div>
 
