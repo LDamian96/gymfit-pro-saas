@@ -246,6 +246,9 @@ model CheckIn {
   id          String   @id @default(cuid())
   timestamp   DateTime @default(now())
   isDuplicate Boolean  @default(false) @map("is_duplicate")
+  // Marca si en este ingreso el miembro excedió su límite semanal de visitas.
+  // Se persiste al escanear para mostrarlo en el historial de asistencias.
+  overLimit   Boolean  @default(false) @map("over_limit")
 
   memberId String @map("member_id")
   member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)

@@ -31,6 +31,7 @@ const mainNav: NavItemConfig[] = [
   { href: '/branches', label: 'Sucursales', icon: Building, roles: ['ADMIN'] },
   { href: '/staff', label: 'Personal', icon: UserCheck, roles: ['ADMIN'] },
   { href: '/checkin', label: 'Check-in QR', icon: ScanLine, roles: ['ADMIN', 'RECEPTIONIST'] },
+  { href: '/attendance', label: 'Asistencias', icon: Activity, roles: ['ADMIN', 'RECEPTIONIST', 'TRAINER'] },
   { href: '/exercises', label: 'Ejercicios', icon: Dumbbell, roles: ['ADMIN', 'TRAINER'] },
   { href: '/muscle-groups', label: 'Grupos Musculares', icon: Activity, roles: ['ADMIN', 'TRAINER'] },
   { href: '/routines', label: 'Rutinas', icon: Activity, roles: ['ADMIN', 'TRAINER'] },

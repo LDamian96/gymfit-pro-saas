@@ -142,6 +142,7 @@ export class CheckinService {
         scannedById,
         tenantId,
         isDuplicate,
+        overLimit,
       },
       include: {
         member: {
@@ -260,5 +261,75 @@ export class CheckinService {
       },
       orderBy: { timestamp: 'desc' },
     });
+  }
+
+  /**
+   * Historial COMPLETO de asistencias (no solo hoy). Paginado, filtro por sede,
+   * ordenado por fecha desc. Admin ve todo el tenant; recep/trainer su sede.
+   */
+  async getHistory(
+    tenantId: string,
+    currentUserId: string,
+    role: string,
+    opts: { page?: number; limit?: number; branchId?: string; from?: string; to?: string } = {},
+  ) {
+    const page = Math.max(1, Number(opts.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(opts.limit) || 25));
+    const skip = (page - 1) * limit;
+
+    const where: Record<string, unknown> = { tenantId };
+    if (!isAdminRole(role)) {
+      where.branchId = await getScopedBranchId(this.prisma, currentUserId, role);
+    } else if (opts.branchId) {
+      where.branchId = opts.branchId;
+    }
+    if (opts.from || opts.to) {
+      const ts: Record<string, Date> = {};
+      if (opts.from) ts.gte = new Date(opts.from);
+      if (opts.to) {
+        const end = new Date(opts.to);
+        end.setHours(23, 59, 59, 999);
+        ts.lte = end;
+      }
+      where.timestamp = ts;
+    }
+
+    const [items, total] = await Promise.all([
+      this.prisma.checkIn.findMany({
+        where,
+        include: {
+          member: {
+            include: {
+              user: { select: { firstName: true, lastName: true, avatar: true } },
+            },
+          },
+          scannedBy: { select: { firstName: true, lastName: true } },
+          branch: { select: { id: true, name: true } },
+        },
+        orderBy: { timestamp: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.checkIn.count({ where }),
+    ]);
+
+    return {
+      items: items.map((c) => ({
+        id: c.id,
+        timestamp: c.timestamp,
+        isDuplicate: c.isDuplicate,
+        overLimit: c.overLimit,
+        memberName: `${c.member.user.firstName} ${c.member.user.lastName}`,
+        avatar: c.member.user.avatar,
+        weeklyVisitLimit: c.member.weeklyVisitLimit,
+        membershipFrequency: c.member.membershipFrequency,
+        branch: c.branch ? { id: c.branch.id, name: c.branch.name } : null,
+        scannedBy: c.scannedBy ? `${c.scannedBy.firstName} ${c.scannedBy.lastName}` : null,
+      })),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 }

@@ -32,6 +32,28 @@ export class CheckinController {
     return this.checkinService.getTodayCheckIns(tenantId, userId, role, branchId);
   }
 
+  // Historial completo de asistencias (panel admin / recepción). Paginado + filtros.
+  @Get('history')
+  @Roles('ADMIN', 'RECEPTIONIST', 'TRAINER')
+  getHistory(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('userId') userId: string,
+    @CurrentUser('role') role: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('branchId') branchId?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.checkinService.getHistory(tenantId, userId, role, {
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      branchId: branchId || undefined,
+      from,
+      to,
+    });
+  }
+
   // Histórico de check-ins de un miembro. Lo usa el cliente para ver su asistencia.
   @Get('member/:memberId')
   @Roles('CLIENT', 'ADMIN', 'TRAINER', 'RECEPTIONIST')

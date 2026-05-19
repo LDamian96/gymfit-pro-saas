@@ -22,7 +22,7 @@ const ADMIN_TRAINER = ['/exercises', '/muscle-groups', '/routines'];
 const ADMIN_RECEP = ['/checkin'];
 // /finances (Membresías): el sidebar muestra el link según setting del tenant;
 // el backend valida el permiso real. El middleware solo deja pasar a staff.
-const ALL_STAFF = ['/members', '/classes', '/pos', '/sales', '/finances'];
+const ALL_STAFF = ['/members', '/classes', '/pos', '/sales', '/finances', '/attendance'];
 const CLIENT_ROUTES = [
   '/my-progress',
   '/my-routines',
