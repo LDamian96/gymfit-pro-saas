@@ -36,6 +36,8 @@ interface PlanItem {
   isPopular: boolean;
   isActive: boolean;
   createdAt: string;
+  frequency?: string | null;
+  weeklyVisitLimit?: number | null;
 }
 
 interface PlanFormData {
@@ -44,6 +46,8 @@ interface PlanFormData {
   duration: string;
   features: string[];
   isPopular: boolean;
+  frequency: string;        // DAILY | INTERDAILY | CUSTOM | UNLIMITED
+  weeklyVisitLimit: number; // solo aplica si frequency = CUSTOM
 }
 
 const EMPTY_FORM: PlanFormData = {
@@ -52,7 +56,16 @@ const EMPTY_FORM: PlanFormData = {
   duration: '',
   features: [],
   isPopular: false,
+  frequency: 'UNLIMITED',
+  weeklyVisitLimit: 3,
 };
+
+const FREQ_OPTIONS = [
+  { v: 'UNLIMITED', label: 'Ilimitado', sub: 'Todos los días' },
+  { v: 'DAILY', label: 'Diario', sub: '7 días/sem' },
+  { v: 'INTERDAILY', label: 'Interdiario', sub: '3 días/sem' },
+  { v: 'CUSTOM', label: 'Personalizado', sub: 'Tú eliges' },
+];
 
 export default function PlansPage() {
   const [plans, setPlans] = useState<PlanItem[]>([]);
@@ -95,6 +108,8 @@ export default function PlansPage() {
       duration: plan.duration,
       features: [...plan.features],
       isPopular: plan.isPopular,
+      frequency: plan.frequency ?? 'UNLIMITED',
+      weeklyVisitLimit: plan.weeklyVisitLimit ?? 3,
     });
     setFeatureInput('');
     setDialogOpen(true);
@@ -339,14 +354,49 @@ export default function PlansPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="plan-duration">Duración *</Label>
+                <Label htmlFor="plan-duration">Duración (meses) *</Label>
                 <Input
                   id="plan-duration"
                   value={formData.duration}
                   onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
-                  placeholder="Ej: 1 mes"
+                  placeholder="Ej: 3"
                 />
               </div>
+            </div>
+
+            {/* Frecuencia del plan — diario / interdiario / personalizado */}
+            <div className="space-y-2">
+              <Label>Frecuencia (días por semana que puede entrenar)</Label>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {FREQ_OPTIONS.map((o) => {
+                  const active = formData.frequency === o.v;
+                  return (
+                    <button
+                      key={o.v}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, frequency: o.v })}
+                      className={`p-3 rounded-xl text-center transition-all border ${active ? 'text-white border-transparent' : 'bg-secondary text-foreground border-border'}`}
+                      style={active ? { background: 'linear-gradient(135deg, #FF5A1F 0%, #E04E15 100%)' } : {}}
+                    >
+                      <p className="text-[12px] font-black uppercase tracking-wide leading-tight">{o.label}</p>
+                      <p className="text-[10px] font-bold mt-0.5 opacity-70">{o.sub}</p>
+                    </button>
+                  );
+                })}
+              </div>
+              {formData.frequency === 'CUSTOM' && (
+                <div className="flex items-center gap-2 pt-1">
+                  <span className="text-[12px] font-bold text-muted-foreground">Días por semana:</span>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={7}
+                    value={formData.weeklyVisitLimit}
+                    onChange={(e) => setFormData({ ...formData, weeklyVisitLimit: parseInt(e.target.value, 10) || 1 })}
+                    className="w-20"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Características */}

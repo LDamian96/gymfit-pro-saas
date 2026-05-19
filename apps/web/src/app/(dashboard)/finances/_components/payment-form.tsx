@@ -6,7 +6,14 @@ import { toast } from 'sonner';
 import { api, cachedGet, unwrap, invalidateCache } from '@/lib/api';
 
 interface MemberOption { id: string; firstName: string; lastName: string; email: string; }
-interface PlanOption { id: string; name: string; price: number; duration: number; }
+interface PlanOption { id: string; name: string; price: number; duration: number; frequency?: string | null; weeklyVisitLimit?: number | null; }
+
+const FREQ_TXT: Record<string, string> = {
+  DAILY: 'Diario (7 días/sem)',
+  INTERDAILY: 'Interdiario (3 días/sem)',
+  CUSTOM: 'Personalizado',
+  UNLIMITED: 'Ilimitado',
+};
 
 type Method = 'CASH' | 'YAPE' | 'BCP' | 'TRANSFER';
 interface PaymentEntry { method: Method; amount: number; reference?: string; }
@@ -143,9 +150,12 @@ export function PaymentForm({ open, onOpenChange, onSuccess, defaultMemberId }: 
           periodEnd: endDate.toISOString(),
         })
       ));
+      // Vincular el plan al miembro: setea fechas (hoy → +duración meses) y la
+      // frecuencia (diario/interdiario/días) AUTOMÁTICO desde el plan elegido.
+      await api.post(`/api/v1/members/${memberId}/activate-plan`, { planId });
       invalidateCache('/api/v1/payments');
       invalidateCache('/api/v1/members');
-      toast.success(`Pago registrado — ${selectedPlan.name} S/${totalPlan}`);
+      toast.success(`Plan activado — ${selectedPlan.name} S/${totalPlan}`);
       onOpenChange(false);
       onSuccess();
     } catch (err: unknown) {
@@ -260,6 +270,16 @@ export function PaymentForm({ open, onOpenChange, onSuccess, defaultMemberId }: 
                     <p className="font-display text-[14px] text-muted-foreground mt-1">{selectedPlan.name}</p>
                   </div>
                   <p className="hero-num" style={{ fontSize: '38px', color: 'var(--gym-orange)' }}>S/ {selectedPlan.price}</p>
+                </div>
+                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50 text-[12px] text-muted-foreground">
+                  <span className="font-bold">{selectedPlan.duration === 1 ? '1 mes' : `${selectedPlan.duration} meses`}</span>
+                  <span>·</span>
+                  <span className="font-bold text-foreground">
+                    {selectedPlan.frequency === 'CUSTOM' && selectedPlan.weeklyVisitLimit
+                      ? `${selectedPlan.weeklyVisitLimit} días/sem`
+                      : FREQ_TXT[selectedPlan.frequency || 'UNLIMITED']}
+                  </span>
+                  <span className="ml-auto text-[11px]">Se asigna automático al cliente</span>
                 </div>
               </div>
             )}

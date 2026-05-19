@@ -34,6 +34,17 @@ export class MembersController {
     return this.membersService.create(dto, tenantId, userId, role);
   }
 
+  // Matricular / renovar plan al miembro. Vincula fechas + frecuencia del plan.
+  @Post(':id/activate-plan')
+  @Roles('ADMIN', 'RECEPTIONIST', 'TRAINER')
+  activatePlan(
+    @Param('id') id: string,
+    @Body() body: { planId: string },
+    @CurrentUser('tenantId') tenantId: string,
+  ) {
+    return this.membersService.activatePlan(id, body.planId, tenantId);
+  }
+
   @Get()
   @Roles('ADMIN', 'RECEPTIONIST', 'TRAINER')
   findAll(

@@ -74,16 +74,29 @@ export class LandingService {
     });
   }
 
+  // Normaliza frecuencia → weeklyVisitLimit coherente.
+  // DAILY=7, INTERDAILY=3, UNLIMITED=null, CUSTOM=lo que mande (1-7).
+  private normalizeFrequency(dto: Partial<CreatePlanDto>): Partial<CreatePlanDto> {
+    if (!dto.frequency) return dto;
+    const out = { ...dto };
+    if (dto.frequency === 'DAILY') out.weeklyVisitLimit = 7;
+    else if (dto.frequency === 'INTERDAILY') out.weeklyVisitLimit = 3;
+    else if (dto.frequency === 'UNLIMITED') out.weeklyVisitLimit = undefined;
+    // CUSTOM conserva dto.weeklyVisitLimit
+    return out;
+  }
+
   async createPlan(dto: CreatePlanDto, tenantId: string) {
+    const data = this.normalizeFrequency(dto);
     return this.prisma.plan.create({
-      data: { ...dto, tenantId },
+      data: { ...data, tenantId } as CreatePlanDto & { tenantId: string },
     });
   }
 
   async updatePlan(id: string, dto: Partial<CreatePlanDto>, tenantId: string) {
     const plan = await this.prisma.plan.findFirst({ where: { id, tenantId } });
     if (!plan) throw new NotFoundException('Plan no encontrado');
-    return this.prisma.plan.update({ where: { id }, data: dto });
+    return this.prisma.plan.update({ where: { id }, data: this.normalizeFrequency(dto) });
   }
 
   async deletePlan(id: string, tenantId: string) {

@@ -536,6 +536,11 @@ model Plan {
   features  String[]
   isPopular Boolean  @default(false) @map("is_popular")
   isActive  Boolean  @default(true) @map("is_active")
+  // Frecuencia de asistencia que otorga este plan. Al matricular un cliente
+  // con este plan, su weeklyVisitLimit/membershipFrequency se copian de aquí.
+  // frequency: DAILY | INTERDAILY | CUSTOM | UNLIMITED (null = ilimitado).
+  frequency        String? @map("frequency")
+  weeklyVisitLimit Int?    @map("weekly_visit_limit")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

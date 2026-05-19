@@ -36,11 +36,23 @@ const FREQ_LABEL: Record<string, string> = {
   UNLIMITED: 'Ilimitado',
 };
 
+// YYYY-MM-DD de hoy en local.
+function todayStr(): string {
+  const d = new Date();
+  const off = d.getTimezoneOffset();
+  return new Date(d.getTime() - off * 60000).toISOString().slice(0, 10);
+}
+function shiftDay(date: string, delta: number): string {
+  const d = new Date(date + 'T12:00:00');
+  d.setDate(d.getDate() + delta);
+  return d.toISOString().slice(0, 10);
+}
+
 export default function AttendancePage() {
   const { defaultBranchId } = useBranches();
   const [branchFilter, setBranchFilter] = useState('');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  // Por defecto: HOY. Un solo día — se puede retroceder/avanzar o elegir fecha exacta.
+  const [date, setDate] = useState(todayStr());
   const [page, setPage] = useState(1);
   const [data, setData] = useState<HistoryResp | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -53,8 +65,8 @@ export default function AttendancePage() {
     try {
       const params: Record<string, unknown> = { page, limit: 25 };
       if (branchFilter) params.branchId = branchFilter;
-      if (from) params.from = from;
-      if (to) params.to = to;
+      // Un solo día: from = to = fecha elegida (el backend cubre hasta 23:59).
+      if (date) { params.from = date; params.to = date; }
       const res = await cachedGet<{ data: HistoryResp }>('/api/v1/checkin/history', { params, ttl: 10_000 });
       // El backend devuelve { success, data: {...} } → cachedGet quita .data del axios,
       // queda { success, data }. Tomamos .data.
@@ -65,10 +77,10 @@ export default function AttendancePage() {
       toast.error('Error al cargar el historial');
       setLoaded(true);
     }
-  }, [page, branchFilter, from, to]);
+  }, [page, branchFilter, date]);
 
   useEffect(() => { fetchHistory(); }, [fetchHistory]);
-  useEffect(() => { setPage(1); }, [branchFilter, from, to]);
+  useEffect(() => { setPage(1); }, [branchFilter, date]);
 
   const rows = data?.items ?? [];
   const totalPages = data?.totalPages ?? 1;
@@ -98,20 +110,27 @@ export default function AttendancePage() {
       </div>
 
       <div className="px-4 md:px-0 space-y-4">
-        {/* Filtros de fecha */}
+        {/* Filtros de fecha — día por día (defecto HOY) */}
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-card">
-            <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
-              className="bg-transparent text-[13px] outline-none" aria-label="Desde" />
-            <span className="text-muted-foreground text-[12px]">→</span>
-            <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
-              className="bg-transparent text-[13px] outline-none" aria-label="Hasta" />
+          <div className="flex items-center gap-1 rounded-xl border border-border bg-card p-1">
+            <button onClick={() => setDate((d) => shiftDay(d, -1))}
+              className="press w-8 h-8 rounded-lg flex items-center justify-center hover:bg-secondary" aria-label="Día anterior">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <div className="flex items-center gap-2 px-2">
+              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+              <input type="date" value={date} max={todayStr()} onChange={(e) => setDate(e.target.value || todayStr())}
+                className="bg-transparent text-[13px] outline-none" aria-label="Fecha" />
+            </div>
+            <button disabled={date >= todayStr()} onClick={() => setDate((d) => shiftDay(d, 1))}
+              className="press w-8 h-8 rounded-lg flex items-center justify-center hover:bg-secondary disabled:opacity-30" aria-label="Día siguiente">
+              <ChevronRight className="h-4 w-4" />
+            </button>
           </div>
-          {(from || to) && (
-            <button onClick={() => { setFrom(''); setTo(''); }}
-              className="text-[12px] font-bold text-muted-foreground hover:text-foreground">
-              Limpiar
+          {date !== todayStr() && (
+            <button onClick={() => setDate(todayStr())}
+              className="text-[12px] font-black px-3 py-2 rounded-lg bg-secondary hover:bg-secondary/70">
+              Hoy
             </button>
           )}
           <div className="md:hidden">
@@ -119,7 +138,7 @@ export default function AttendancePage() {
           </div>
           {data && (
             <span className="ml-auto text-[12px] font-black text-muted-foreground tabular-nums">
-              {data.total} ingresos
+              {data.total} ingresos · {new Date(date + 'T12:00:00').toLocaleDateString('es-PE', { weekday: 'short', day: '2-digit', month: 'short' })}
             </span>
           )}
         </div>

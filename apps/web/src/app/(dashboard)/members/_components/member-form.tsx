@@ -28,8 +28,6 @@ export function MemberForm({ open, memberId, onClose, onSuccess }: MemberFormPro
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
   const [branchId, setBranchId] = useState('');
-  // Límite de visitas por semana. '' = sin límite. Presets típicos: 3 interdiario, 5, 7 diario.
-  const [weeklyVisitLimit, setWeeklyVisitLimit] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const isEditing = memberId !== null;
@@ -57,12 +55,10 @@ export function MemberForm({ open, memberId, onClose, onSuccess }: MemberFormPro
         setPassword('');
         setPhone(m.phone || '');
         setBranchId(m.branchId ?? '');
-        setWeeklyVisitLimit(m.weeklyVisitLimit != null ? String(m.weeklyVisitLimit) : '');
       }).catch(() => { toast.error('Error al cargar'); onClose(); });
     } else if (open) {
       setFirstName(''); setLastName(''); setEmailUser(''); setPassword(''); setPhone('');
       setBranchId(defaultBranchId ?? '');
-      setWeeklyVisitLimit('');
     }
     setErrors({});
   }, [open, memberId, onClose, defaultBranchId]);
@@ -92,22 +88,15 @@ export function MemberForm({ open, memberId, onClose, onSuccess }: MemberFormPro
         if (phone) data.phone = phone;
         if (password) data.password = password as string;
         if (showBranchField) data.branchId = branchId;
-        // weeklyVisitLimit: '' = quitar límite (null), número = setear.
-        data.weeklyVisitLimit = weeklyVisitLimit === '' ? null : Number(weeklyVisitLimit);
+        // La frecuencia NO se edita aquí — se asigna desde el plan al matricular.
         await api.patch(`/api/v1/members/${memberId}`, data);
         toast.success('Cliente actualizado');
       } else {
-        // Frecuencia: '' = UNLIMITED, '7' = DAILY, '3' = INTERDAILY, otro = CUSTOM.
-        const wl = weeklyVisitLimit === '' ? null : Number(weeklyVisitLimit);
-        let membershipFrequency = 'UNLIMITED';
-        if (wl === 7) membershipFrequency = 'DAILY';
-        else if (wl === 3) membershipFrequency = 'INTERDAILY';
-        else if (wl != null) membershipFrequency = 'CUSTOM';
+        // La frecuencia (diario/interdiario/días) NO se elige aquí: se asigna
+        // automáticamente desde el PLAN cuando se matricula en Finanzas → Registrar Pago.
         await api.post('/api/v1/members', {
           firstName, lastName, email: fullEmail, password,
           membershipType: 'MONTHLY',
-          membershipFrequency,
-          ...(membershipFrequency === 'CUSTOM' && wl != null ? { weeklyVisitLimit: wl } : {}),
           phone: phone || undefined,
           branchId: branchId || undefined,
         });
@@ -226,53 +215,6 @@ export function MemberForm({ open, memberId, onClose, onSuccess }: MemberFormPro
             </FormField>
           </div>
 
-          {/* Plan: frecuencia semanal. Visible al crear Y editar. Presets: interdiario(3), 5, diario(7). */}
-          <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] mb-3" style={{ color: 'hsl(var(--muted-foreground))' }}>
-                Frecuencia del plan
-              </p>
-              <FormField label="¿Cuántas veces a la semana puede entrenar?"
-                hint="Si excede el límite, el admin recibe alerta. Sin límite = puede venir todos los días.">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  {[
-                    { value: '', label: 'Sin límite', sub: 'Ilimitado' },
-                    { value: '3', label: 'Interdiario', sub: '3×/sem' },
-                    { value: '5', label: '5 días', sub: 'Lun-Vie' },
-                    { value: '7', label: 'Diario', sub: '7×/sem' },
-                  ].map((opt) => {
-                    const active = weeklyVisitLimit === opt.value;
-                    return (
-                      <button
-                        key={opt.value || 'none'}
-                        type="button"
-                        onClick={() => setWeeklyVisitLimit(opt.value)}
-                        className={`press p-3 rounded-xl text-center transition-all ${active ? 'text-white' : 'bg-secondary text-foreground border border-border'}`}
-                        style={active ? {
-                          background: 'linear-gradient(135deg, #FF5A1F 0%, #E04E15 100%)',
-                          boxShadow: '0 6px 14px -4px rgba(255,90,31,0.45)',
-                        } : {}}
-                      >
-                        <p className="text-[12px] font-black uppercase tracking-wider leading-tight">{opt.label}</p>
-                        <p className="text-[10px] font-bold mt-0.5 opacity-70">{opt.sub}</p>
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="mt-2.5 flex items-center gap-2">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">O personalizado:</span>
-                  <input
-                    type="number"
-                    min={0}
-                    max={7}
-                    value={weeklyVisitLimit}
-                    onChange={(e) => setWeeklyVisitLimit(e.target.value)}
-                    placeholder="—"
-                    className="ff-input w-20"
-                  />
-                  <span className="text-[10px] text-muted-foreground">veces / semana</span>
-                </div>
-              </FormField>
-          </div>
 
           {/* Sección 4: Sucursal — auto si hay 1, obligatorio si hay 2+ */}
           {showBranchField && (

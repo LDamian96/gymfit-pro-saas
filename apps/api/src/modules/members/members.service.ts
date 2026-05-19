@@ -107,6 +107,44 @@ export class MembersService {
     return this.formatMember(result.user, result.member);
   }
 
+  /**
+   * Matricula/renueva un plan al miembro. Vincula fechas y frecuencia AUTOMÁTICO
+   * desde el Plan elegido: membershipStart=hoy, membershipEnd=hoy+duración meses,
+   * weeklyVisitLimit y membershipFrequency copiados del plan.
+   * Si la membresía sigue vigente, extiende desde la fecha de fin actual.
+   */
+  async activatePlan(memberId: string, planId: string, tenantId: string) {
+    const member = await this.prisma.member.findFirst({ where: { id: memberId, tenantId } });
+    if (!member) throw new NotFoundException('Miembro no encontrado');
+
+    const plan = await this.prisma.plan.findFirst({ where: { id: planId, tenantId } });
+    if (!plan) throw new NotFoundException('Plan no encontrado');
+
+    const now = new Date();
+    // Si la membresía actual sigue vigente, encadenar desde su fin (renovación).
+    const base = member.membershipEnd && member.membershipEnd > now ? new Date(member.membershipEnd) : now;
+    const end = new Date(base);
+    end.setMonth(end.getMonth() + plan.duration);
+
+    // Tipo legacy a partir de la duración del plan.
+    const type =
+      plan.duration >= 12 ? 'ANNUAL' : plan.duration >= 3 ? 'QUARTERLY' : 'MONTHLY';
+
+    const updated = await this.prisma.member.update({
+      where: { id: memberId },
+      data: {
+        membershipType: type,
+        membershipStart: member.membershipEnd && member.membershipEnd > now ? member.membershipStart : now,
+        membershipEnd: end,
+        weeklyVisitLimit: plan.weeklyVisitLimit ?? null,
+        membershipFrequency: plan.frequency ?? null,
+        isActive: true,
+      },
+      include: { user: true },
+    });
+    return this.formatMember(updated.user, updated);
+  }
+
   async findAll(tenantId: string, query: QueryMemberDto, currentUserId?: string, role?: string) {
     const { page = 1, limit = 10, search, status, branchId } = query;
     const skip = (page - 1) * limit;
