@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { api, cachedGet, invalidateCache } from '@/lib/api';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { MemberProgress } from '@/components/dashboard/member-progress';
-import { BranchFilter } from '@/components/dashboard/branch-filter';
+import { useBranchContext } from '@/stores/branch-context-store';
 import { useAuthStore } from '@/stores/auth-store';
 
 interface Member {
@@ -87,8 +87,8 @@ export function MembersTable({ refreshKey, onEdit }: MembersTableProps) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [planFilter, setPlanFilter] = useState('all');
-  // Filtro por sede (solo admin con 2+ sedes lo ve). '' = todas.
-  const [branchFilter, setBranchFilter] = useState('');
+  // Filtro por sede viene del CONTEXTO GLOBAL del sidebar (no local).
+  const branchFilter = useBranchContext((s) => s.activeBranchId);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [progressMember, setProgressMember] = useState<{ id: string; name: string } | null>(null);
@@ -412,7 +412,7 @@ export function MembersTable({ refreshKey, onEdit }: MembersTableProps) {
             <option value="inactive">Inactivos</option>
           </select>
         </div>
-        {isAdmin && <BranchFilter value={branchFilter} onChange={setBranchFilter} />}
+        {/* Filtro de sede ahora es GLOBAL (selector en sidebar) */}
       </div>
 
       {/* Tabla — header instantáneo, filas en cascada */}

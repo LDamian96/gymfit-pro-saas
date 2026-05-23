@@ -6,8 +6,8 @@ import { Header } from '@/components/dashboard/header';
 import { StaffForm } from './_components/staff-form';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { api, cachedGet, invalidateCache } from '@/lib/api';
-import { BranchFilter } from '@/components/dashboard/branch-filter';
-import { useBranches } from '@/hooks/use-branches';
+import { useBranchContext } from '@/stores/branch-context-store';
+import { BranchContextBadge } from '@/components/dashboard/branch-context-switcher';
 import { toast } from 'sonner';
 
 type StaffRole = 'RECEPTIONIST' | 'TRAINER';
@@ -66,13 +66,8 @@ export default function StaffPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const { defaultBranchId } = useBranches();
-  const [branchFilter, setBranchFilter] = useState('');
-
-  // Auto-selecciona la única sede si solo hay una.
-  useEffect(() => {
-    if (defaultBranchId && !branchFilter) setBranchFilter(defaultBranchId);
-  }, [defaultBranchId, branchFilter]);
+  // Sede activa viene del CONTEXTO GLOBAL (selector en sidebar).
+  const branchFilter = useBranchContext((s) => s.activeBranchId);
 
   const fetchStaff = useCallback(async (bId: string) => {
     try {
@@ -158,7 +153,7 @@ export default function StaffPage() {
       <div className="reveal-up">
         <Header eyebrow="Equipo" title="Personal" description="Entrenadores y recepcionistas con asignación de sucursal">
           <div className="flex items-center gap-3">
-            <BranchFilter value={branchFilter} onChange={setBranchFilter} className="hidden md:flex" />
+            <BranchContextBadge />
             <button onClick={() => setCreateOpen(true)} className="btn-fire">
               <Plus className="h-4 w-4" strokeWidth={3} /> Agregar personal
             </button>

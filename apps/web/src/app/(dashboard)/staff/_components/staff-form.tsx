@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Building } from 'lucide-react';
 import { useBranches } from '@/hooks/use-branches';
+import { useBranchContext } from '@/stores/branch-context-store';
 
 // Roles disponibles para el personal
 type StaffRole = 'RECEPTIONIST' | 'TRAINER';
@@ -58,13 +59,16 @@ const INITIAL_FORM: StaffFormData = {
 
 export function StaffForm({ open, onOpenChange, onSubmit, staff }: StaffFormProps) {
   const { activeBranches, defaultBranchId, loading: branchesLoading } = useBranches();
+  const activeCtxBranchId = useBranchContext((s) => s.activeBranchId);
+  const ctxBranch = activeBranches.find((b) => b.id === activeCtxBranchId);
   const [form, setForm] = useState<StaffFormData>(INITIAL_FORM);
   const [loading, setLoading] = useState(false);
   const isEditing = !!staff;
 
-  // Si solo hay 1 sucursal, queda auto-seleccionada. Con 2+ es obligatorio elegir.
-  const requiresBranchPick = activeBranches.length >= 2;
-  const showBranchField = activeBranches.length >= 1;
+  // Si hay sede activa del contexto global, no se pide manualmente.
+  // Solo se pide cuando el admin está en "Todas".
+  const requiresBranchPick = activeBranches.length >= 2 && !ctxBranch;
+  const showBranchField = activeBranches.length >= 1 && !ctxBranch;
 
   // Rellenar formulario al editar
   useEffect(() => {
@@ -79,9 +83,10 @@ export function StaffForm({ open, onOpenChange, onSubmit, staff }: StaffFormProp
         branchId: staff.branchId ?? '',
       });
     } else {
-      setForm({ ...INITIAL_FORM, branchId: defaultBranchId ?? '' });
+      // Pre-cargar: sede activa del contexto > única sede activa
+      setForm({ ...INITIAL_FORM, branchId: activeCtxBranchId || defaultBranchId || '' });
     }
-  }, [staff, open, defaultBranchId]);
+  }, [staff, open, defaultBranchId, activeCtxBranchId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -183,6 +188,14 @@ export function StaffForm({ open, onOpenChange, onSubmit, staff }: StaffFormProp
               placeholder="+51 999 999 999"
             />
           </div>
+
+          {/* Aviso: se asignará a la sede activa del contexto global */}
+          {ctxBranch && !isEditing && (
+            <div className="flex items-center gap-2 px-3 py-2.5 rounded-md text-sm" style={{ background: 'rgba(255,90,31,0.10)', border: '1px solid rgba(255,90,31,0.25)', color: 'var(--gym-orange)' }}>
+              <Building className="h-3.5 w-3.5 shrink-0" />
+              <span className="font-bold">Se asignará a {ctxBranch.name} (sede activa)</span>
+            </div>
+          )}
 
           {/* Sucursal — auto si hay 1, obligatorio si hay 2+ */}
           {showBranchField && (

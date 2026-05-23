@@ -4,8 +4,9 @@ import { useEffect, useState, useCallback } from 'react';
 import { Plus, Pencil, Trash2, Upload, ShoppingBag, Tag as TagIcon, Package, Eye, EyeOff, Store, UserCheck, ChevronLeft, ChevronRight, ArrowLeftRight } from 'lucide-react';
 import { Header } from '@/components/dashboard/header';
 import { api, unwrap } from '@/lib/api';
-import { BranchFilter } from '@/components/dashboard/branch-filter';
 import { useBranches } from '@/hooks/use-branches';
+import { useBranchContext } from '@/stores/branch-context-store';
+import { BranchContextBadge } from '@/components/dashboard/branch-context-switcher';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -59,11 +60,9 @@ export default function ShopAdminPage() {
   const [page, setPage] = useState(1);
   const PER_PAGE = 15;
 
-  const { activeBranches, defaultBranchId } = useBranches();
-  const [branchFilter, setBranchFilter] = useState('');
-  useEffect(() => {
-    if (defaultBranchId && !branchFilter) setBranchFilter(defaultBranchId);
-  }, [defaultBranchId, branchFilter]);
+  const { activeBranches } = useBranches();
+  // Sede activa viene del CONTEXTO GLOBAL del sidebar.
+  const branchFilter = useBranchContext((s) => s.activeBranchId);
 
   // Form
   const [name, setName] = useState('');
@@ -257,9 +256,9 @@ export default function ShopAdminPage() {
   return (
     <div className="md:space-y-5">
       <div className="reveal-up">
-        <Header eyebrow="Catálogo" title="Tienda" description="Stock por sede. Filtra para ver/editar el stock de cada sucursal.">
+        <Header eyebrow="Catálogo" title="Tienda" description="Catálogo global. El stock se muestra según la sede activa del sidebar.">
           <div className="flex items-center gap-3">
-            <BranchFilter value={branchFilter} onChange={setBranchFilter} className="hidden md:flex" />
+            <BranchContextBadge />
             <button onClick={openCreate} className="btn-fire">
               <Plus className="h-4 w-4" strokeWidth={3} /> Nuevo producto
             </button>

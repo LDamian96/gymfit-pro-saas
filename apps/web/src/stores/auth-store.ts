@@ -63,6 +63,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     // PRIMERO y este logout corre el API + limpieza en background.
     if (typeof document !== 'undefined') {
       document.cookie = 'user_meta=;path=/;max-age=0;samesite=lax';
+      // Reset contexto de sede activa
+      try { sessionStorage.removeItem('gymfit-branch-ctx'); } catch { /* ignore */ }
     }
     try { await api.post('/api/v1/auth/logout'); } catch { /* ignorar */ }
     // El user se limpiará cuando el componente desmonte tras llegar al login,

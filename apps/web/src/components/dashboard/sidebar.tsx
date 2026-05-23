@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { prefetchRouteData } from '@/lib/route-prefetch';
 import { cachedGet, unwrap } from '@/lib/api';
+import { BranchContextSwitcher } from '@/components/dashboard/branch-context-switcher';
 
 type RoleKey = 'ADMIN' | 'TRAINER' | 'RECEPTIONIST' | 'CLIENT';
 type IconCmp = React.ComponentType<{ className?: string; strokeWidth?: number; style?: React.CSSProperties }>;
@@ -184,6 +185,9 @@ export function Sidebar() {
           </button>
         </div>
       </div>
+
+      {/* Selector global de SEDE activa — el contexto de toda la app. */}
+      <BranchContextSwitcher />
 
       {/* Nav — admin con grupos, otros roles lista plana */}
       <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">

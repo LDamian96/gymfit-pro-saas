@@ -14,6 +14,8 @@ import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/auth-store';
 import { Lock, Building, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useBranches } from '@/hooks/use-branches';
+import { useBranchContext } from '@/stores/branch-context-store';
+import { BranchContextBadge } from '@/components/dashboard/branch-context-switcher';
 
 interface Product {
   id: string;
@@ -70,14 +72,15 @@ export default function POSPage() {
   const { user } = useAuthStore();
   const { activeBranches, defaultBranchId } = useBranches();
   const isAdmin = user?.role?.split(',').map((r) => r.trim()).includes('ADMIN');
-  // Sede donde se hace la venta. Recep/Trainer: forzada a la suya. Admin: puede
-  // elegir si hay 2+ (selector visible) o queda fija con la única (auto).
-  const [branchId, setBranchId] = useState('');
-  useEffect(() => {
-    if (branchId) return;
-    setBranchId(user?.branch?.id ?? defaultBranchId ?? activeBranches[0]?.id ?? '');
-  }, [user?.branch?.id, defaultBranchId, activeBranches, branchId]);
-  const showBranchPicker = isAdmin && activeBranches.length >= 2;
+  // Sede de venta = la sede activa del CONTEXTO GLOBAL (sidebar).
+  // Si el admin está en "Todas", fallback a defaultBranch o primera sede activa.
+  const activeBranchId = useBranchContext((s) => s.activeBranchId);
+  const branchId = activeBranchId || user?.branch?.id || defaultBranchId || activeBranches[0]?.id || '';
+  // El selector local de sede ya NO se muestra: el admin cambia desde el sidebar.
+  const showBranchPicker = false;
+  // Stub: el JSX antiguo del picker referencia setBranchId; con showBranchPicker=false
+  // nunca se renderiza, pero TS necesita el símbolo.
+  const setBranchId = (_v: string) => { void _v; };
 
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState('');

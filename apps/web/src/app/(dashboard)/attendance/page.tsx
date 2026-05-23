@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { ScanLine, AlertTriangle, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { Header } from '@/components/dashboard/header';
 import { cachedGet } from '@/lib/api';
-import { BranchFilter } from '@/components/dashboard/branch-filter';
-import { useBranches } from '@/hooks/use-branches';
+import { useBranchContext } from '@/stores/branch-context-store';
+import { BranchContextBadge } from '@/components/dashboard/branch-context-switcher';
 import { toast } from 'sonner';
 
 interface AttendanceRow {
@@ -49,17 +49,13 @@ function shiftDay(date: string, delta: number): string {
 }
 
 export default function AttendancePage() {
-  const { defaultBranchId } = useBranches();
-  const [branchFilter, setBranchFilter] = useState('');
+  // Sede activa viene del CONTEXTO GLOBAL del sidebar.
+  const branchFilter = useBranchContext((s) => s.activeBranchId);
   // Por defecto: HOY. Un solo día — se puede retroceder/avanzar o elegir fecha exacta.
   const [date, setDate] = useState(todayStr());
   const [page, setPage] = useState(1);
   const [data, setData] = useState<HistoryResp | null>(null);
   const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    if (defaultBranchId && !branchFilter) setBranchFilter(defaultBranchId);
-  }, [defaultBranchId, branchFilter]);
 
   const fetchHistory = useCallback(async () => {
     try {
@@ -97,7 +93,7 @@ export default function AttendancePage() {
     <div className="md:space-y-6">
       <div className="reveal-up">
         <Header eyebrow="Asistencias" title="Historial" description="Todos los ingresos registrados, ordenados por fecha. Los que excedieron su plan salen marcados.">
-          <BranchFilter value={branchFilter} onChange={setBranchFilter} className="hidden md:flex" />
+          <BranchContextBadge />
         </Header>
       </div>
 
@@ -134,7 +130,7 @@ export default function AttendancePage() {
             </button>
           )}
           <div className="md:hidden">
-            <BranchFilter value={branchFilter} onChange={setBranchFilter} />
+            <BranchContextBadge />
           </div>
           {data && (
             <span className="ml-auto text-[12px] font-black text-muted-foreground tabular-nums">

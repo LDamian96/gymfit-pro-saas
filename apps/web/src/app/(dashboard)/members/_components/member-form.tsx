@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { User, Mail, Phone, Lock, Check, X, Building } from 'lucide-react';
 import { api, invalidateCache } from '@/lib/api';
 import { useBranches } from '@/hooks/use-branches';
+import { useBranchContext } from '@/stores/branch-context-store';
 
 interface MemberFormProps {
   open: boolean;
@@ -21,6 +22,11 @@ interface MemberDetail {
 
 export function MemberForm({ open, memberId, onClose, onSuccess }: MemberFormProps) {
   const { activeBranches, defaultBranchId } = useBranches();
+  // Si el admin tiene una sede activa en el contexto global, el nuevo cliente
+  // se auto-asigna a esa sede y NO se pide en el form. Si está en "Todas", se
+  // muestra el selector como antes.
+  const activeCtxBranchId = useBranchContext((s) => s.activeBranchId);
+  const ctxBranch = activeBranches.find((b) => b.id === activeCtxBranchId);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [emailUser, setEmailUser] = useState('');
@@ -31,8 +37,10 @@ export function MemberForm({ open, memberId, onClose, onSuccess }: MemberFormPro
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const isEditing = memberId !== null;
-  const requiresBranchPick = activeBranches.length >= 2;
-  const showBranchField = activeBranches.length >= 1;
+  // Si hay sede activa del contexto, no se pide la sede manualmente (auto).
+  // Solo se pide cuando el admin está en "Todas las sucursales".
+  const requiresBranchPick = activeBranches.length >= 2 && !ctxBranch;
+  const showBranchField = activeBranches.length >= 1 && !ctxBranch;
 
   // Cargar dominio configurado
   useEffect(() => {
@@ -58,7 +66,8 @@ export function MemberForm({ open, memberId, onClose, onSuccess }: MemberFormPro
       }).catch(() => { toast.error('Error al cargar'); onClose(); });
     } else if (open) {
       setFirstName(''); setLastName(''); setEmailUser(''); setPassword(''); setPhone('');
-      setBranchId(defaultBranchId ?? '');
+      // Pre-cargar: sede activa del contexto > única sede activa
+      setBranchId(activeCtxBranchId || defaultBranchId || '');
     }
     setErrors({});
   }, [open, memberId, onClose, defaultBranchId]);
@@ -215,6 +224,16 @@ export function MemberForm({ open, memberId, onClose, onSuccess }: MemberFormPro
             </FormField>
           </div>
 
+
+          {/* Aviso: el cliente se asigna a la sede activa (contexto del sidebar). */}
+          {ctxBranch && !isEditing && (
+            <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl" style={{ background: 'rgba(255,90,31,0.10)', border: '1px solid rgba(255,90,31,0.25)' }}>
+              <Building className="h-4 w-4 shrink-0" style={{ color: 'var(--gym-orange)' }} />
+              <span className="text-[12px] font-bold" style={{ color: 'var(--gym-orange)' }}>
+                Se asignará a <strong>{ctxBranch.name}</strong> (sede activa)
+              </span>
+            </div>
+          )}
 
           {/* Sección 4: Sucursal — auto si hay 1, obligatorio si hay 2+ */}
           {showBranchField && (
