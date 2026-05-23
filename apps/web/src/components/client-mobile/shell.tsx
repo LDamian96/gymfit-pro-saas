@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import { useCheckinNotifier } from '@/hooks/use-checkin-notifier';
 import { useRouter } from 'next/navigation';
 import { Sun, Moon, LogOut, Dumbbell } from 'lucide-react';
+import { BranchContextSwitcher } from '@/components/dashboard/branch-context-switcher';
 import { ClientBottomNav } from './bottom-nav';
 import { NotificationBell } from '@/components/dashboard/notification-bell';
 
@@ -57,6 +58,12 @@ function MobileTopBar() {
           </button>
         </div>
       </div>
+
+      {/* Selector global de sede — solo visible para admin con sucursales.
+          BranchContextSwitcher detecta el rol y solo se renderiza si aplica. */}
+      <div className="pb-1">
+        <BranchContextSwitcher />
+      </div>
     </div>
   );
 }
@@ -73,7 +80,8 @@ export function ClientMobileShell({ children }: { children: React.ReactNode }) {
       <main
         className="min-h-screen"
         style={{
-          paddingTop: 'calc(48px + env(safe-area-inset-top, 0px))',
+          // 48 top bar + ~52 fila del switcher de sede (admin/recep/trainer)
+          paddingTop: 'calc(100px + env(safe-area-inset-top, 0px))',
           paddingBottom: 'calc(86px + env(safe-area-inset-bottom, 0px))',
         }}
       >

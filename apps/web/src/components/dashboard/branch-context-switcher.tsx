@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, Building, Check } from 'lucide-react';
 import { useBranches } from '@/hooks/use-branches';
 import { useBranchContext } from '@/stores/branch-context-store';
@@ -16,7 +17,28 @@ export function BranchContextSwitcher() {
   const { activeBranches } = useBranches();
   const { activeBranchId, locked, setActiveBranch, hydrate } = useBranchContext();
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [pos, setPos] = useState<{ left: number; top: number; width: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => { setMounted(true); }, []);
+
+  // Recalcula la posición del dropdown cuando se abre o cambia el viewport.
+  useEffect(() => {
+    if (!open || !btnRef.current) return;
+    const update = () => {
+      const r = btnRef.current!.getBoundingClientRect();
+      setPos({ left: r.left, top: r.bottom + 4, width: r.width });
+    };
+    update();
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
+  }, [open]);
 
   const isAdmin = user?.role?.split(',').map((r) => r.trim()).includes('ADMIN');
 
@@ -56,37 +78,61 @@ export function BranchContextSwitcher() {
     );
   }
 
+  const dropdown = open && pos && mounted ? createPortal(
+    <>
+      {/* Backdrop transparente para cerrar al click afuera (solo móvil) */}
+      <div onClick={() => setOpen(false)}
+        style={{ position: 'fixed', inset: 0, zIndex: 999 }} />
+      <div className="branch-dropdown bg-card text-foreground border border-border rounded-xl shadow-2xl overflow-hidden"
+        style={{
+          position: 'fixed',
+          left: pos.left,
+          top: pos.top,
+          width: pos.width,
+          minWidth: 200,
+          zIndex: 1000, // sobre TODO (drawer móvil z-50, native-bar z-50, contenido)
+        }}>
+        <button onClick={() => { setActiveBranch(''); setOpen(false); }}
+          className="w-full px-3 py-2.5 text-left text-[12px] font-bold text-foreground hover:bg-secondary flex items-center gap-2 min-w-0">
+          <span className="flex-1 truncate min-w-0">Todas las sucursales</span>
+          {!activeBranchId && <Check className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--gym-orange)' }} />}
+        </button>
+        {activeBranches.map((b) => (
+          <button key={b.id} onClick={() => { setActiveBranch(b.id); setOpen(false); }}
+            className="w-full px-3 py-2.5 text-left text-[12px] font-bold text-foreground hover:bg-secondary flex items-center gap-2 border-t border-border min-w-0">
+            <span className="flex-1 truncate min-w-0">{b.name}</span>
+            {activeBranchId === b.id && <Check className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--gym-orange)' }} />}
+          </button>
+        ))}
+      </div>
+      <style jsx>{`
+        .branch-dropdown {
+          animation: branchDropdownIn 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+          transform-origin: top;
+        }
+        @keyframes branchDropdownIn {
+          from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+      `}</style>
+    </>,
+    document.body,
+  ) : null;
+
   return (
-    <div ref={ref} className="mx-3 mb-3 relative">
-      <button onClick={() => setOpen((v) => !v)}
-        className="press w-full px-3 py-2 rounded-xl flex items-center gap-2 text-[12px] font-bold transition-colors"
+    <div ref={ref} className="mx-3 mb-3">
+      <button ref={btnRef} onClick={() => setOpen((v) => !v)}
+        className="press w-full px-3 py-2 rounded-xl flex items-center gap-2 text-[12px] font-bold transition-colors min-w-0"
         style={{
           background: activeBranchId ? 'rgba(255,90,31,0.12)' : 'hsl(var(--secondary))',
           border: `1px solid ${activeBranchId ? 'rgba(255,90,31,0.30)' : 'hsl(var(--border))'}`,
           color: activeBranchId ? 'var(--gym-orange)' : 'hsl(var(--foreground))',
         }}>
         <Building className="h-3.5 w-3.5 shrink-0" />
-        <span className="truncate flex-1 text-left">{label}</span>
-        <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <span className="truncate flex-1 text-left min-w-0">{label}</span>
+        <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
-
-      {open && (
-        <div className="absolute left-0 right-0 top-full mt-1 rounded-xl shadow-lg z-50 overflow-hidden"
-          style={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}>
-          <button onClick={() => { setActiveBranch(''); setOpen(false); }}
-            className="w-full px-3 py-2.5 text-left text-[12px] font-bold hover:bg-secondary flex items-center gap-2">
-            <span className="flex-1">Todas las sucursales</span>
-            {!activeBranchId && <Check className="h-3.5 w-3.5" style={{ color: 'var(--gym-orange)' }} />}
-          </button>
-          {activeBranches.map((b) => (
-            <button key={b.id} onClick={() => { setActiveBranch(b.id); setOpen(false); }}
-              className="w-full px-3 py-2.5 text-left text-[12px] font-bold hover:bg-secondary flex items-center gap-2 border-t border-border">
-              <span className="flex-1 truncate">{b.name}</span>
-              {activeBranchId === b.id && <Check className="h-3.5 w-3.5" style={{ color: 'var(--gym-orange)' }} />}
-            </button>
-          ))}
-        </div>
-      )}
+      {dropdown}
     </div>
   );
 }
