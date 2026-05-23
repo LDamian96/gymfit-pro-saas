@@ -19,7 +19,6 @@ export function BranchContextSwitcher() {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [pos, setPos] = useState<{ left: number; top: number; width: number } | null>(null);
-  const ref = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => { setMounted(true); }, []);
@@ -51,15 +50,9 @@ export function BranchContextSwitcher() {
     else hydrate({ branchId: user.branch?.id, locked: true });
   }, [user, isAdmin, hydrate]);
 
-  // Cerrar dropdown al click afuera
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [open]);
+  // Cierre al click afuera lo maneja el backdrop del portal (más confiable que
+  // un document listener: el dropdown vive en <body> y un .contains() del wrapper
+  // lo daría como "fuera", cerrándose ANTES de aplicar la selección).
 
   // Sin sedes activas → no renderizar (gimnasio sin sucursales)
   if (activeBranches.length === 0) return null;
@@ -120,7 +113,7 @@ export function BranchContextSwitcher() {
   ) : null;
 
   return (
-    <div ref={ref} className="mx-3 mb-3">
+    <div className="mx-3 mb-3">
       <button ref={btnRef} onClick={() => setOpen((v) => !v)}
         className="press w-full px-3 py-2 rounded-xl flex items-center gap-2 text-[12px] font-bold transition-colors min-w-0"
         style={{
