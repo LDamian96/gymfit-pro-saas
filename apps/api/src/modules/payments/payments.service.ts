@@ -42,13 +42,15 @@ export class PaymentsService {
   }
 
   async findAll(tenantId: string, query: QueryPaymentDto) {
-    const { page = 1, limit = 10, memberId, status, method, dateFrom, dateTo } = query;
+    const { page = 1, limit = 10, memberId, status, method, dateFrom, dateTo, branchId } = query;
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = { tenantId };
     if (memberId) where.memberId = memberId;
     if (status) where.status = status;
     if (method) where.method = method;
+    // Filtro por sede: el payment no tiene branchId, sino el member relacionado.
+    if (branchId) where.member = { branchId };
     if (dateFrom || dateTo) {
       const createdAtFilter: Record<string, Date> = {};
       if (dateFrom) createdAtFilter.gte = new Date(dateFrom);

@@ -35,4 +35,8 @@ export class QueryPaymentDto {
   @IsOptional()
   @IsDateString()
   dateTo?: string;
+
+  @IsOptional()
+  @IsString()
+  branchId?: string;
 }

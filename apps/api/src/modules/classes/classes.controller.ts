@@ -28,9 +28,10 @@ export class ClassesController {
   findAll(
     @CurrentUser('tenantId') tenantId: string,
     @Query('dayOfWeek') dayOfWeek?: string,
+    @Query('branchId') branchId?: string,
   ) {
     const day = dayOfWeek !== undefined ? parseInt(dayOfWeek, 10) : undefined;
-    return this.classesService.findAll(tenantId, day);
+    return this.classesService.findAll(tenantId, day, branchId || undefined);
   }
 
   /** Crear una clase (solo ADMIN) */

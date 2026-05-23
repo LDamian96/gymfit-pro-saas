@@ -55,7 +55,7 @@ export class ClassesService {
   }
 
   /** Listar clases del tenant con filtro opcional por día */
-  async findAll(tenantId: string, dayOfWeek?: number) {
+  async findAll(tenantId: string, dayOfWeek?: number, branchId?: string) {
     const where: Record<string, unknown> = {
       tenantId,
       isActive: true,
@@ -63,6 +63,9 @@ export class ClassesService {
 
     if (dayOfWeek !== undefined) {
       where.dayOfWeek = dayOfWeek;
+    }
+    if (branchId) {
+      where.branchId = branchId;
     }
 
     const classes = await this.prisma.class.findMany({
