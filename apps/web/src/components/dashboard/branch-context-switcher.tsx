@@ -54,22 +54,25 @@ export function BranchContextSwitcher() {
   // un document listener: el dropdown vive en <body> y un .contains() del wrapper
   // lo daría como "fuera", cerrándose ANTES de aplicar la selección).
 
-  // Sin sedes activas → no renderizar (gimnasio sin sucursales)
-  if (activeBranches.length === 0) return null;
-
-  const active = activeBranches.find((b) => b.id === activeBranchId);
-  const label = active ? active.name : 'Todas las sucursales';
-
-  // No-admin: badge fijo, sin dropdown
+  // No-admin (recep/trainer/cliente): badge fijo con SU sede. No pueden leer
+  // /api/v1/branches (solo admin), así que usamos user.branch del JWT.
   if (locked || !isAdmin) {
+    const sedeName = user?.branch?.name;
+    if (!sedeName) return null; // sin sede asignada → no mostrar nada
     return (
       <div className="mx-3 mb-3 px-3 py-2 rounded-xl flex items-center gap-2 text-[12px] font-bold"
         style={{ background: 'rgba(255,90,31,0.10)', border: '1px solid rgba(255,90,31,0.25)', color: 'var(--gym-orange)' }}>
         <Building className="h-3.5 w-3.5 shrink-0" />
-        <span className="truncate flex-1">{label}</span>
+        <span className="truncate flex-1">{sedeName}</span>
       </div>
     );
   }
+
+  // Admin sin sedes activas → no renderizar (gimnasio sin sucursales)
+  if (activeBranches.length === 0) return null;
+
+  const active = activeBranches.find((b) => b.id === activeBranchId);
+  const label = active ? active.name : 'Todas las sucursales';
 
   const dropdown = open && pos && mounted ? createPortal(
     <>
@@ -138,6 +141,20 @@ export function BranchContextSwitcher() {
 export function BranchContextBadge() {
   const { activeBranches } = useBranches();
   const { activeBranchId } = useBranchContext();
+  const { user } = useAuthStore();
+  const isAdmin = user?.role?.split(',').map((r) => r.trim()).includes('ADMIN');
+  // No-admin: no puede leer /branches → usar su sede del JWT.
+  if (!isAdmin) {
+    const sedeName = user?.branch?.name;
+    if (!sedeName) return null;
+    return (
+      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider"
+        style={{ background: 'rgba(255,90,31,0.12)', border: '1px solid rgba(255,90,31,0.35)', color: 'var(--gym-orange)' }}>
+        <Building className="h-3 w-3" />
+        <span>{sedeName}</span>
+      </div>
+    );
+  }
   if (activeBranches.length === 0) return null;
   const active = activeBranches.find((b) => b.id === activeBranchId);
   const label = active ? active.name : 'Todas las sucursales';
