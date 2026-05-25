@@ -19,6 +19,8 @@ import {
 import { api, cachedGet, invalidateCache } from '@/lib/api';
 import { useBranchContext } from '@/stores/branch-context-store';
 import { BranchContextBadge } from '@/components/dashboard/branch-context-switcher';
+import { useAuthStore } from '@/stores/auth-store';
+import { useBranches } from '@/hooks/use-branches';
 import { toast } from 'sonner';
 import { staggerContainer, staggerItem } from '@/animations/variants';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
@@ -52,6 +54,10 @@ export default function RoutinesPage() {
   const [exercises, setExercises] = useState<ExerciseDb[]>([]);
   // Sede activa del contexto global: filtra los clientes a los que se asigna rutina.
   const branchFilter = useBranchContext((s) => s.activeBranchId);
+  const { user } = useAuthStore();
+  const { activeBranches } = useBranches();
+  const sedeNombre = activeBranches.find((b) => b.id === branchFilter)?.name
+    ?? user?.branch?.name ?? '';
 
   const fetchMembers = useCallback(async () => {
     setLoadingMembers(true);
@@ -329,7 +335,7 @@ export default function RoutinesPage() {
   return (
     <div className="md:space-y-6">
       <div className="reveal-up">
-        <Header eyebrow="Entrenamiento" title="Rutinas" description="Selecciona un cliente para ver y gestionar sus programas">
+        <Header eyebrow={`Entrenamiento${sedeNombre ? ` · ${sedeNombre}` : ''}`} title="Rutinas" description={`Bienvenido a ${user?.tenant?.name ?? 'GymFit'}${sedeNombre ? ` — ${sedeNombre}` : ''}. Selecciona un cliente para gestionar sus rutinas.`}>
           <BranchContextBadge />
         </Header>
       </div>

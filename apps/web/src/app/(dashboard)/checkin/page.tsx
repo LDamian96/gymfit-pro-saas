@@ -8,7 +8,8 @@ import { api, cachedGet, invalidateCache, unwrap } from '@/lib/api';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/auth-store';
 import { useBranches } from '@/hooks/use-branches';
-import { BranchFilter } from '@/components/dashboard/branch-filter';
+import { useBranchContext } from '@/stores/branch-context-store';
+import { BranchContextBadge } from '@/components/dashboard/branch-context-switcher';
 
 interface CheckInRecord {
   id: string;
@@ -56,14 +57,13 @@ export default function CheckInPage() {
   const { user } = useAuthStore();
   const { activeBranches, defaultBranchId } = useBranches();
   const isAdmin = user?.role?.split(',').map((r) => r.trim()).includes('ADMIN');
-  // Solo admin puede filtrar la lista de hoy por otra sede. '' = todas.
-  const [branchListFilter, setBranchListFilter] = useState('');
-  // Sucursal donde se hace el escaneo: la del recepcionista logueado, o si es admin
-  // sin sucursal asignada, la única activa, o la primera disponible.
-  const scanBranchId = user?.branch?.id ?? defaultBranchId ?? activeBranches[0]?.id ?? '';
-  const scanBranchName = user?.branch?.name
-    ?? (defaultBranchId ? activeBranches.find((b) => b.id === defaultBranchId)?.name : undefined)
-    ?? activeBranches[0]?.name
+  // Filtro de la lista de hoy = sede activa del contexto global.
+  const branchListFilter = useBranchContext((s) => s.activeBranchId);
+  // Sucursal donde se hace el escaneo: la sede activa del contexto, o la del
+  // recepcionista logueado, o la única/primera disponible.
+  const scanBranchId = branchListFilter || user?.branch?.id || defaultBranchId || activeBranches[0]?.id || '';
+  const scanBranchName = activeBranches.find((b) => b.id === scanBranchId)?.name
+    ?? user?.branch?.name
     ?? '';
   const [qrCode, setQrCode] = useState('');
   const [todayCheckins, setTodayCheckins] = useState<CheckInRecord[]>([]);
@@ -222,7 +222,9 @@ export default function CheckInPage() {
   return (
     <div className="md:space-y-6">
       <div className="reveal-up">
-        <Header eyebrow="Recepción" title="Check-in QR" description="Escanea el código QR del cliente o búscalo manualmente" />
+        <Header eyebrow={`Recepción${scanBranchName ? ` · ${scanBranchName}` : ''}`} title="Check-in QR" description={`Bienvenido a ${user?.tenant?.name ?? 'GymFit'}${scanBranchName ? ` — ${scanBranchName}` : ''}. Escanea el QR del cliente o búscalo manualmente.`}>
+          <BranchContextBadge />
+        </Header>
       </div>
 
       {/* MOBILE header nativo */}
@@ -316,9 +318,7 @@ export default function CheckInPage() {
                 <h3 className="font-bold text-foreground text-sm">Hoy</h3>
                 <span className="px-2 py-0.5 bg-primary/10 text-primary text-[11px] font-bold rounded-full">{todayCheckins.length}</span>
               </div>
-              {isAdmin && (
-                <BranchFilter value={branchListFilter} onChange={setBranchListFilter} />
-              )}
+              {isAdmin && <BranchContextBadge />}
             </div>
 
             <div className="max-h-[350px] overflow-y-auto divide-y divide-border">

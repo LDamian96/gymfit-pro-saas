@@ -138,14 +138,16 @@ export class AuthService {
       expiresIn: this.configService.get('JWT_REFRESH_EXPIRATION') || '7d',
     });
 
-    // Si es CLIENT, buscar su memberId
+    // Si es CLIENT, buscar su memberId + la sede del member (su sede "home").
     let memberId: string | null = null;
+    let clientBranch: { id: string; name: string } | null = null;
     if (user.role === 'CLIENT') {
       const member = await this.prisma.member.findFirst({
         where: { userId: user.id },
-        select: { id: true },
+        select: { id: true, branch: { select: { id: true, name: true } } },
       });
       memberId = member?.id || null;
+      clientBranch = member?.branch ?? null;
     }
 
     return {
@@ -164,7 +166,10 @@ export class AuthService {
           name: user.tenant.name,
           slug: user.tenant.slug,
         },
-        branch: user.branch ? { id: user.branch.id, name: user.branch.name } : null,
+        // CLIENT: sede del member; staff/admin: sede del user.
+        branch: user.branch
+          ? { id: user.branch.id, name: user.branch.name }
+          : clientBranch,
       },
     };
   }
@@ -217,12 +222,14 @@ export class AuthService {
     }
 
     let memberId: string | null = null;
+    let clientBranch: { id: string; name: string } | null = null;
     if (user.role === 'CLIENT') {
       const member = await this.prisma.member.findFirst({
         where: { userId: user.id },
-        select: { id: true },
+        select: { id: true, branch: { select: { id: true, name: true } } },
       });
       memberId = member?.id || null;
+      clientBranch = member?.branch ?? null;
     }
 
     return {
@@ -242,7 +249,7 @@ export class AuthService {
       },
       branch: user.branch
         ? { id: user.branch.id, name: user.branch.name }
-        : null,
+        : clientBranch,
     };
   }
 }

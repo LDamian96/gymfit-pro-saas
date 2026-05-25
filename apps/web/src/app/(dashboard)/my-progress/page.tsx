@@ -103,7 +103,9 @@ export default function MyProgressPage() {
     <div className="pb-2">
       {/* Hero saludo */}
       <div className="px-5 pt-2 pb-4 reveal-up">
-        <p className="label-athletic text-[var(--gym-orange)]">/ Bienvenido</p>
+        <p className="label-athletic text-[var(--gym-orange)]">
+          / Bienvenido a {user?.tenant?.name ?? 'GymFit'}{user?.branch ? ` · ${user.branch.name}` : ''}
+        </p>
         <h1 className="font-display tracking-tight leading-[0.9] mt-2 text-foreground"
           style={{ fontSize: 'clamp(34px, 9vw, 44px)' }}>
           {greeting},<br /><span className="text-[var(--gym-orange)]">{user?.firstName ?? 'Atleta'}.</span>
