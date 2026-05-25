@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Body, Query, UseGuards } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -13,14 +13,14 @@ export class DashboardController {
   // Stats y actividad reciente: ADMIN y RECEPCIÓN las necesitan para sus pantallas
   @Get('stats')
   @Roles('ADMIN', 'RECEPTIONIST')
-  getStats(@CurrentUser('tenantId') tenantId: string) {
-    return this.dashboardService.getStats(tenantId);
+  getStats(@CurrentUser('tenantId') tenantId: string, @Query('branchId') branchId?: string) {
+    return this.dashboardService.getStats(tenantId, branchId || undefined);
   }
 
   @Get('recent-activity')
   @Roles('ADMIN', 'RECEPTIONIST')
-  getRecentActivity(@CurrentUser('tenantId') tenantId: string) {
-    return this.dashboardService.getRecentActivity(tenantId);
+  getRecentActivity(@CurrentUser('tenantId') tenantId: string, @Query('branchId') branchId?: string) {
+    return this.dashboardService.getRecentActivity(tenantId, branchId || undefined);
   }
 
   // Configuración del tenant: solo ADMIN

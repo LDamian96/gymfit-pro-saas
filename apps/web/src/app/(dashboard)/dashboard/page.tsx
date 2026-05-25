@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import { cachedGet } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
+import { useBranchContext } from '@/stores/branch-context-store';
+import { BranchContextBadge } from '@/components/dashboard/branch-context-switcher';
 
 interface DashboardStats {
   activeMembers: number;
@@ -30,20 +32,22 @@ const planLabels: Record<string, string> = { MONTHLY: 'MENSUAL', QUARTERLY: 'TRI
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
+  const branchId = useBranchContext((s) => s.activeBranchId);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [activity, setActivity] = useState<RecentActivity | null>(null);
 
   useEffect(() => {
     let mounted = true;
+    const params = branchId ? { branchId } : undefined;
     Promise.all([
-      cachedGet<{ data: DashboardStats }>('/api/v1/dashboard/stats', { ttl: 15_000 }),
-      cachedGet<{ data: RecentActivity }>('/api/v1/dashboard/recent-activity', { ttl: 15_000 }),
+      cachedGet<{ data: DashboardStats }>('/api/v1/dashboard/stats', { params, ttl: 15_000 }),
+      cachedGet<{ data: RecentActivity }>('/api/v1/dashboard/recent-activity', { params, ttl: 15_000 }),
     ]).then(([s, a]) => {
       if (!mounted) return;
       setStats(s.data); setActivity(a.data);
     }).catch(() => {});
     return () => { mounted = false; };
-  }, []);
+  }, [branchId]);
 
   const firstName = user?.firstName ?? 'Admin';
   const greeting = (() => {
@@ -59,13 +63,16 @@ export default function DashboardPage() {
       <div className="hidden md:block space-y-6">
         {/* Hero header */}
         <div className="reveal-up">
-          <p className="label-athletic text-[var(--gym-orange)]">/ Panel admin</p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="label-athletic text-[var(--gym-orange)]">/ Panel admin</p>
+            <BranchContextBadge />
+          </div>
           <h1 className="font-display tracking-tight leading-[0.9] mt-2 text-foreground"
             style={{ fontSize: 'clamp(40px, 5vw, 64px)' }}>
             {greeting}, <span className="text-[var(--gym-orange)]">{firstName}.</span>
           </h1>
           <p className="text-[14px] text-muted-foreground mt-3 max-w-xl">
-            Hoy es {new Date().toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' })}. Aquí tienes el pulso de tu gimnasio.
+            Hoy es {new Date().toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' })}. {branchId ? 'Datos de la sede seleccionada.' : 'Aquí tienes el pulso de tu gimnasio.'}
           </p>
         </div>
 

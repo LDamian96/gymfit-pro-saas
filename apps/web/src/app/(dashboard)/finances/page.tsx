@@ -7,6 +7,8 @@ import { PaymentsTable } from './_components/payments-table';
 import { PaymentForm } from './_components/payment-form';
 import { ClientsEnrollmentList } from './_components/clients-enrollment-list';
 import { cachedGet, invalidateCache } from '@/lib/api';
+import { useBranchContext } from '@/stores/branch-context-store';
+import { BranchContextBadge } from '@/components/dashboard/branch-context-switcher';
 
 interface FinanceStats {
   totalRevenue: number;
@@ -23,11 +25,12 @@ export default function FinancesPage() {
   const [defaultMemberId, setDefaultMemberId] = useState<string | undefined>(undefined);
   const [refreshKey, setRefreshKey] = useState(0);
   const [stats, setStats] = useState<FinanceStats | null>(null);
+  const branchId = useBranchContext((s) => s.activeBranchId);
 
   useEffect(() => {
     let mounted = true;
     cachedGet<{ data: { totalRevenue: number; pendingAmount: number; pendingCount: number; todayAmount: number; todayPaymentCount: number } }>(
-      '/api/v1/dashboard/stats', { ttl: 15_000 },
+      '/api/v1/dashboard/stats', { params: branchId ? { branchId } : undefined, ttl: 15_000 },
     ).then((res) => {
       if (!mounted) return;
       setStats({
@@ -39,7 +42,7 @@ export default function FinancesPage() {
       });
     }).catch(() => { /* silencioso */ });
     return () => { mounted = false; };
-  }, [refreshKey]);
+  }, [refreshKey, branchId]);
 
   const handlePaymentSuccess = () => {
     invalidateCache('/api/v1/dashboard/stats');
@@ -145,9 +148,12 @@ export default function FinancesPage() {
       <div className="hidden md:block space-y-6">
         <div className="reveal-up">
           <Header eyebrow="Panel admin" title="Membresías" description="Matrícula de clientes, pagos e ingresos">
-            <button onClick={openPaymentBlank} className="btn-fire">
-              <DollarSign className="h-4 w-4" /> Registrar pago
-            </button>
+            <div className="flex items-center gap-3">
+              <BranchContextBadge />
+              <button onClick={openPaymentBlank} className="btn-fire">
+                <DollarSign className="h-4 w-4" /> Registrar pago
+              </button>
+            </div>
           </Header>
         </div>
 

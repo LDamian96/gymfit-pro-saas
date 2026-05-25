@@ -6,7 +6,8 @@ import { Receipt, TrendingUp, Banknote, Smartphone, CreditCard, ShoppingCart, Us
 import { Header } from '@/components/dashboard/header';
 import { cachedGet, unwrap } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
-import { BranchFilter } from '@/components/dashboard/branch-filter';
+import { useBranchContext } from '@/stores/branch-context-store';
+import { BranchContextBadge } from '@/components/dashboard/branch-context-switcher';
 
 interface SaleItem {
   id: string;
@@ -73,7 +74,7 @@ export default function SalesPage() {
   const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10));
   const [expanded, setExpanded] = useState<string | null>(null);
   // Filtro por sede (solo admin lo ve). '' = todas las sucursales.
-  const [branchFilter, setBranchFilter] = useState('');
+  const branchFilter = useBranchContext((s) => s.activeBranchId);
 
   const isAdmin = user?.role?.split(',').map((r) => r.trim()).includes('ADMIN');
 
@@ -141,7 +142,7 @@ export default function SalesPage() {
           <span className="text-muted-foreground text-sm">→</span>
           <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="text-sm bg-transparent outline-none flex-1 min-w-0" />
         </div>
-        {isAdmin && <BranchFilter value={branchFilter} onChange={setBranchFilter} />}
+        {isAdmin && <BranchContextBadge />}
       </div>
 
       {/* Stats cards — cascada lego */}
