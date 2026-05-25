@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
-import { Receipt, TrendingUp, Banknote, Smartphone, CreditCard, ShoppingCart, User, Calendar, Package, UserCheck, Clock } from 'lucide-react';
+import { Receipt, TrendingUp, Banknote, Smartphone, CreditCard, ShoppingCart, User, Calendar, Package, UserCheck, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Header } from '@/components/dashboard/header';
 import { cachedGet, unwrap } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
@@ -78,6 +78,26 @@ export default function SalesPage() {
 
   const isAdmin = user?.role?.split(',').map((r) => r.trim()).includes('ADMIN');
 
+  // Mueve TODA la ventana [from,to] N días (negativo=atrás). Facilita revisar
+  // día por día sin tener que abrir el selector de fecha.
+  const shiftWindow = (deltaDays: number) => {
+    const shift = (iso: string) => {
+      const d = new Date(iso + 'T12:00:00');
+      d.setDate(d.getDate() + deltaDays);
+      return d.toISOString().slice(0, 10);
+    };
+    setFrom((f) => shift(f));
+    setTo((t) => shift(t));
+    setPage(1);
+  };
+  const resetToday = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const wk = new Date(); wk.setDate(wk.getDate() - 7);
+    setFrom(wk.toISOString().slice(0, 10));
+    setTo(today);
+    setPage(1);
+  };
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -136,11 +156,26 @@ export default function SalesPage() {
 
       {/* Filtros: fechas + sede (sede solo para admin con 2+ sucursales) */}
       <div className="px-4 md:px-0 flex items-center gap-3 flex-wrap mb-3 md:mb-0 anim-lego" style={{ animationDelay: '60ms' }}>
-        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-card border border-border w-full md:w-auto">
-          <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="text-sm bg-transparent outline-none flex-1 min-w-0" />
-          <span className="text-muted-foreground text-sm">→</span>
-          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="text-sm bg-transparent outline-none flex-1 min-w-0" />
+        {/* ◀ retrocede la ventana 1 día / ▶ avanza */}
+        <div className="flex items-center gap-1.5">
+          <button onClick={() => shiftWindow(-1)} title="Día anterior"
+            className="press w-9 h-9 rounded-xl flex items-center justify-center bg-card border border-border">
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-card border border-border">
+            <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+            <input type="date" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }} className="text-sm bg-transparent outline-none min-w-0" />
+            <span className="text-muted-foreground text-sm">→</span>
+            <input type="date" value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }} className="text-sm bg-transparent outline-none min-w-0" />
+          </div>
+          <button onClick={() => shiftWindow(1)} title="Día siguiente"
+            className="press w-9 h-9 rounded-xl flex items-center justify-center bg-card border border-border">
+            <ChevronRight className="h-4 w-4" />
+          </button>
+          <button onClick={resetToday}
+            className="text-[12px] font-black px-3 py-2 rounded-lg bg-secondary hover:bg-secondary/70">
+            Últimos 7 días
+          </button>
         </div>
         {isAdmin && <BranchContextBadge />}
       </div>
@@ -188,7 +223,18 @@ export default function SalesPage() {
         <div className="mx-4 md:mx-0 bg-card rounded-2xl border border-border p-12 text-center anim-fade">
           <Receipt className="h-12 w-12 mx-auto mb-3 text-muted-foreground/30" />
           <p className="font-bold">Sin ventas en este rango</p>
-          <p className="text-sm text-muted-foreground mt-1">Ajusta las fechas o registra una venta</p>
+          <p className="text-sm text-muted-foreground mt-1 mb-4">Retrocede para buscar el día con la última venta</p>
+          <div className="flex items-center justify-center gap-2">
+            <button onClick={() => shiftWindow(-7)}
+              className="press inline-flex items-center gap-1.5 text-[12px] font-black px-4 py-2 rounded-lg text-white"
+              style={{ background: 'linear-gradient(135deg, #FF5A1F 0%, #E04E15 100%)' }}>
+              <ChevronLeft className="h-3.5 w-3.5" /> 7 días antes
+            </button>
+            <button onClick={resetToday}
+              className="text-[12px] font-black px-4 py-2 rounded-lg bg-secondary hover:bg-secondary/70">
+              Hoy
+            </button>
+          </div>
         </div>
       ) : !loading && (
         <div className="mx-4 md:mx-0 bg-card rounded-2xl border border-border overflow-hidden divide-y divide-border anim-stagger" key={`sales-${sales.length}-${page}`}>
