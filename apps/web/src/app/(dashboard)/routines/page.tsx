@@ -17,6 +17,8 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { api, cachedGet, invalidateCache } from '@/lib/api';
+import { useBranchContext } from '@/stores/branch-context-store';
+import { BranchContextBadge } from '@/components/dashboard/branch-context-switcher';
 import { toast } from 'sonner';
 import { staggerContainer, staggerItem } from '@/animations/variants';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
@@ -48,15 +50,20 @@ export default function RoutinesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [exercises, setExercises] = useState<ExerciseDb[]>([]);
+  // Sede activa del contexto global: filtra los clientes a los que se asigna rutina.
+  const branchFilter = useBranchContext((s) => s.activeBranchId);
 
   const fetchMembers = useCallback(async () => {
     setLoadingMembers(true);
     try {
-      const res = await cachedGet<{ data: Member[] }>('/api/v1/members', { params: { limit: 100 }, ttl: 30_000 });
+      const res = await cachedGet<{ data: Member[] }>('/api/v1/members', {
+        params: { limit: 100, ...(branchFilter ? { branchId: branchFilter } : {}) },
+        ttl: 30_000,
+      });
       setMembers(res.data);
     } catch { toast.error('Error al cargar clientes'); }
     finally { setLoadingMembers(false); }
-  }, []);
+  }, [branchFilter]);
 
   const fetchExercises = useCallback(async () => {
     try {
@@ -322,7 +329,9 @@ export default function RoutinesPage() {
   return (
     <div className="md:space-y-6">
       <div className="reveal-up">
-        <Header eyebrow="Entrenamiento" title="Rutinas" description="Selecciona un cliente para ver y gestionar sus programas" />
+        <Header eyebrow="Entrenamiento" title="Rutinas" description="Selecciona un cliente para ver y gestionar sus programas">
+          <BranchContextBadge />
+        </Header>
       </div>
 
       {/* MOBILE header */}

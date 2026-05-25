@@ -114,34 +114,35 @@ export default function POSPage() {
     finally { setLoading(false); }
   }, []);
 
-  // Re-fetch productos cuando cambia la sede → stock correcto por sucursal.
+  // Cargar productos SIEMPRE con la sede de venta (stock correcto por sucursal).
+  // Si el gym no tiene sucursales (branchId vacío y sin sedes), carga sin filtro.
   useEffect(() => {
-    if (branchId) fetchProducts(false, branchId);
-  }, [branchId, fetchProducts]);
+    if (branchId) {
+      fetchProducts(false, branchId);
+    } else if (activeBranches.length === 0) {
+      fetchProducts(false);
+    }
+  }, [branchId, activeBranches.length, fetchProducts]);
 
-  // Carga inicial: productos + permisos en paralelo (caché agresiva)
+  // Carga inicial: SOLO permisos. Los productos los carga el efecto de arriba
+  // cuando la sede está resuelta (evita mostrar el stock sumado de "Todas").
   useEffect(() => {
     const roles = (user?.role || '').split(',').map((r) => r.trim());
     const isAdmin = roles.includes('ADMIN');
-
-    const tasks: Promise<unknown>[] = [fetchProducts()];
     if (isAdmin) {
       setAllowed(true);
     } else {
-      tasks.push(
-        cachedGet<unknown>('/api/v1/tenant/settings', { ttl: 60_000 })
-          .then((r) => {
-            const d = unwrap<{ trainerPosEnabled: boolean; receptionistPosEnabled: boolean }>(r);
-            if (!d) { setAllowed(true); return; }
-            if (roles.includes('TRAINER')) setAllowed(d.trainerPosEnabled);
-            else if (roles.includes('RECEPTIONIST')) setAllowed(d.receptionistPosEnabled);
-            else setAllowed(true);
-          })
-          .catch(() => setAllowed(true)),
-      );
+      cachedGet<unknown>('/api/v1/tenant/settings', { ttl: 60_000 })
+        .then((r) => {
+          const d = unwrap<{ trainerPosEnabled: boolean; receptionistPosEnabled: boolean }>(r);
+          if (!d) { setAllowed(true); return; }
+          if (roles.includes('TRAINER')) setAllowed(d.trainerPosEnabled);
+          else if (roles.includes('RECEPTIONIST')) setAllowed(d.receptionistPosEnabled);
+          else setAllowed(true);
+        })
+        .catch(() => setAllowed(true));
     }
-    Promise.allSettled(tasks);
-  }, [user?.role, fetchProducts]);
+  }, [user?.role]);
 
   // Búsqueda miembros con debounce
   useEffect(() => {
@@ -320,7 +321,9 @@ export default function POSPage() {
   return (
     <div className="lg:space-y-5 anim-lego" style={{ fontFamily: FONT }}>
       <div className="hidden md:block">
-        <Header eyebrow="Punto de venta" title="Vender" description="Registra ventas de productos. El stock se descuenta automáticamente." />
+        <Header eyebrow="Punto de venta" title="Vender" description="Registra ventas de productos. El stock se descuenta automáticamente.">
+          <BranchContextBadge />
+        </Header>
 
         {/* Banner de sucursal — prominente cuando hay varias, sticky a la izquierda */}
         {showBranchPicker && (

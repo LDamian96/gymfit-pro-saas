@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { Check, X, ChevronLeft, ChevronRight, Loader2, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, cachedGet, invalidateCache } from '@/lib/api';
+import { useBranchContext } from '@/stores/branch-context-store';
 
 type PaymentStatus = 'PENDING' | 'CONFIRMED' | 'REJECTED';
 type PaymentMethod = 'YAPE' | 'BCP' | 'CASH' | 'TRANSFER';
@@ -76,12 +77,15 @@ export function PaymentsTable({ refreshKey }: PaymentsTableProps) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
+  // Sede activa del contexto global del sidebar.
+  const branchFilter = useBranchContext((s) => s.activeBranchId);
 
   const fetchPayments = useCallback(async () => {
     setLoading(true);
     try {
       const params: Record<string, unknown> = { page, limit: 10 };
       if (statusFilter && statusFilter !== 'all') params.status = statusFilter;
+      if (branchFilter) params.branchId = branchFilter;
 
       const data = await cachedGet<PaymentsResponse>('/api/v1/payments', { params, ttl: 10_000 });
       setPayments(data.data);
@@ -91,7 +95,7 @@ export function PaymentsTable({ refreshKey }: PaymentsTableProps) {
     } finally {
       setLoading(false);
     }
-  }, [page, statusFilter]);
+  }, [page, statusFilter, branchFilter]);
 
   useEffect(() => {
     fetchPayments();
