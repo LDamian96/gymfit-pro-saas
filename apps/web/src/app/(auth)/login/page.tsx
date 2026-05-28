@@ -49,6 +49,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // isLeaving: dispara la animacion CSS de "subir y desvanecerse" del login
+  // INMEDIATO al click. Asi el usuario ve movimiento sin esperar al API.
+  const [isLeaving, setIsLeaving] = useState(false);
   const { login } = useAuthStore();
   const router = useRouter();
 
@@ -79,6 +82,9 @@ export default function LoginPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    // CUE VISUAL INMEDIATO — el login empieza a subirse/desvanecerse al instante
+    // del click, en paralelo con el API. El usuario ve movimiento desde t=0.
+    setIsLeaving(true);
 
     // OPTIMISTIC LOGIN — Si hay user cacheado por este email (de login previo),
     // setea cookie + store + navega INSTANTÁNEO al panel con animación slide-up.
@@ -106,6 +112,7 @@ export default function LoginPage() {
         document.cookie = 'auth_pending=;path=/;max-age=0;samesite=lax';
         useAuthStore.setState({ user: null });
         setIsSubmitting(false);
+        setIsLeaving(false); // baja el login de vuelta si fallo
         if (cached) router.replace('/login');
       });
   };
@@ -118,6 +125,7 @@ export default function LoginPage() {
   const loginAsFullDemo = () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
+    setIsLeaving(true);
     const cached = readCachedUser(FULL_DEMO.email);
     if (cached) {
       const j = encodeURIComponent(JSON.stringify(cached));
@@ -140,12 +148,13 @@ export default function LoginPage() {
         document.cookie = 'auth_pending=;path=/;max-age=0;samesite=lax';
         useAuthStore.setState({ user: null });
         setIsSubmitting(false);
+        setIsLeaving(false);
         if (cached) router.replace('/login');
       });
   };
 
   return (
-    <div className="min-h-screen w-full mesh-bg grain relative overflow-hidden">
+    <div className={`min-h-screen w-full mesh-bg grain relative overflow-hidden ${isLeaving ? 'login-leaving' : ''}`}>
       {/* Decoraciones de fondo — solo desktop, dan profundidad */}
       <div className="pointer-events-none absolute inset-0 hidden md:block">
         <div className="absolute top-1/4 -left-32 w-96 h-96 rounded-full bg-[var(--gym-orange)] opacity-20 blur-[120px]" />
