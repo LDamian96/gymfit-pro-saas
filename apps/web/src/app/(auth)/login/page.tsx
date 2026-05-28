@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Dumbbell, ArrowRight, Zap } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
@@ -52,8 +52,18 @@ export default function LoginPage() {
   const { login } = useAuthStore();
   const router = useRouter();
 
-  // NO prefetch de rutas protegidas — sin sesión devuelven redirect a /login,
-  // y Next.js cachearía ese redirect, causando bounce tras el login real.
+  // Prefetch del BUNDLE/RSC de las 4 rutas destino (admin/trainer/recep/cliente).
+  // Apenas el usuario haga submit la navegacion no necesita bajar codigo del
+  // panel desde el server -> View Transition empieza inmediato.
+  // OJO: solo prefetch si ya hay user_meta (sesion previa). Sino el middleware
+  // redirige a /login y Next cachea ese redirect (bounce loop).
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (!document.cookie.includes('user_meta=')) return;
+    ['/dashboard', '/routines', '/checkin', '/my-progress'].forEach((p) => {
+      try { router.prefetch(p); } catch { /* noop */ }
+    });
+  }, [router]);
 
   const navigateWithTransition = (target: string) => {
     // View Transitions API → slide-up entre login y panel (Chrome/Edge).

@@ -52,8 +52,8 @@ export class AuthService {
       throw new ConflictException('Ya existe un gimnasio con ese nombre');
     }
 
-    // Hash de la contraseña
-    const passwordHash = await bcrypt.hash(dto.password, 12);
+    // Hash de la contraseña (rounds 10: OWASP recomendado, 4x mas rapido que 12).
+    const passwordHash = await bcrypt.hash(dto.password, 10);
 
     // Crear tenant + usuario admin en una transacción
     const result = await this.prisma.$transaction(async (tx) => {
@@ -114,11 +114,26 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales incorrectas');
     }
 
-    // Actualizar último login
-    await this.prisma.user.update({
+    // Upgrade-on-login: si el hash es legacy (>10 rondas), re-hashea a 10
+    // en background. El proximo login del mismo usuario sera ~4x mas rapido.
+    try {
+      const parts = user.passwordHash.split('$');
+      const rounds = parseInt(parts[2] || '0', 10);
+      if (rounds > 10) {
+        void bcrypt.hash(dto.password, 10).then((newHash) =>
+          this.prisma.user.update({
+            where: { id: user.id },
+            data: { passwordHash: newHash },
+          }),
+        ).catch(() => { /* silencioso, no rompe el login */ });
+      }
+    } catch { /* hash en formato inesperado, ignorar */ }
+
+    // Actualizar lastLoginAt fire-and-forget — no necesita bloquear el response.
+    void this.prisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
-    });
+    }).catch(() => { /* silencioso */ });
 
     // Generar tokens
     const payload: JwtPayload = {
