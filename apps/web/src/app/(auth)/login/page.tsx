@@ -69,14 +69,15 @@ export default function LoginPage() {
   }, [router]);
 
   const navigateWithTransition = (target: string) => {
-    // View Transitions API → slide-up entre login y panel (Chrome/Edge).
-    // Fallback (Firefox/Safari): nav directo sin animación.
-    const w = window as unknown as { document: { startViewTransition?: (cb: () => void) => void } };
-    if (w.document.startViewTransition) {
-      w.document.startViewTransition(() => router.replace(target));
-    } else {
-      router.replace(target);
-    }
+    // YA NO usamos View Transitions API aqui: la API oculta el DOM
+    // actual y muestra una "snapshot congelada" del login mientras espera
+    // el RSC del panel (1-1.5s sobre redes lentas). El usuario veia
+    // pantalla congelada varios segundos. Ahora:
+    // - CSS de .login-leaving anima el login HACIA ARRIBA (visible en DOM)
+    // - router.replace navega directo
+    // - Next.js muestra el loading.tsx del segmento (skeleton)
+    // - El panel monta cuando llegan RSC + chunks JS
+    router.replace(target);
   };
 
   const handleSubmit = (e: React.FormEvent) => {

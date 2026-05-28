@@ -459,6 +459,13 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 /* Page-in: entra el main del panel cuando cambia de ruta */
 .page-in { animation: slideUp 0.22s cubic-bezier(0.16,1,0.3,1) both; }
 
+/* Barra de progreso del loading.tsx — feedback visual claro mientras
+   bajan los chunks JS del panel sobre redes lentas. */
+@keyframes loading-bar {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
 /* Cue visual del LOGIN al click — sube INMEDIATO, sin esperar al API.
    NO se desvanece (opacity), porque al desaparecer dejaba ver el fondo
    blanco del <body> hasta que llega el RSC del panel. Sube y se queda
