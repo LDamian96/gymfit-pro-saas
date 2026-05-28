@@ -459,15 +459,17 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 /* Page-in: entra el main del panel cuando cambia de ruta */
 .page-in { animation: slideUp 0.22s cubic-bezier(0.16,1,0.3,1) both; }
 
-/* Cue visual del LOGIN al click — sube y se desvanece INMEDIATO,
-   sin esperar al API. Oculta los ~500ms de red detras de movimiento. */
+/* Cue visual del LOGIN al click — sube INMEDIATO, sin esperar al API.
+   NO se desvanece (opacity), porque al desaparecer dejaba ver el fondo
+   blanco del <body> hasta que llega el RSC del panel. Sube y se queda
+   arriba; cuando llega el panel, View Transition lo reemplaza. */
 .login-leaving {
-  animation: login-fly-up 0.55s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: login-fly-up 0.45s cubic-bezier(0.4, 0, 0.2, 1) forwards;
   pointer-events: none;
 }
 @keyframes login-fly-up {
-  0% { transform: translateY(0) scale(1); opacity: 1; }
-  100% { transform: translateY(-20vh) scale(0.96); opacity: 0; }
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-100vh); }
 }
 
 /* Skeleton shimmer — INVISIBLE en todo el panel admin.

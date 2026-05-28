@@ -154,12 +154,18 @@ export default function LoginPage() {
   };
 
   return (
-    <div className={`min-h-screen w-full mesh-bg grain relative overflow-hidden ${isLeaving ? 'login-leaving' : ''}`}>
-      {/* Decoraciones de fondo — solo desktop, dan profundidad */}
+    <div className="min-h-screen w-full mesh-bg grain relative overflow-hidden">
+      {/* Decoraciones de fondo — solo desktop, dan profundidad.
+          Esto se queda fijo aunque el login se vaya hacia arriba: asi nunca
+          ves el body blanco mientras llega el panel. */}
       <div className="pointer-events-none absolute inset-0 hidden md:block">
         <div className="absolute top-1/4 -left-32 w-96 h-96 rounded-full bg-[var(--gym-orange)] opacity-20 blur-[120px]" />
         <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full bg-[var(--gym-lime)] opacity-[0.07] blur-[140px]" />
       </div>
+
+      {/* Wrapper interno que SI se anima al click. El padre con mesh-bg
+          se queda visible cubriendo todo, sin gap blanco. */}
+      <div className={isLeaving ? 'login-leaving' : ''}>
 
       {/* ===== DESKTOP: split 2 columnas ===== */}
       <div className="hidden md:grid md:grid-cols-2 min-h-screen relative z-10">
@@ -256,6 +262,7 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+      </div>{/* fin wrapper isLeaving */}
     </div>
   );
 }
