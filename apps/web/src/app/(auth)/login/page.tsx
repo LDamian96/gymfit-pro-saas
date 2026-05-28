@@ -96,7 +96,9 @@ export default function LoginPage() {
       .then((real) => {
         try { localStorage.setItem(`gymfit:lastuser:${email}`, JSON.stringify(real)); } catch {}
         if (!cached) navigateWithTransition(targetForRoles(real.role));
-        router.refresh();
+        // No router.refresh() — disparaba un re-fetch completo del RSC del
+        // panel POST-animacion (cursor "cargando" varios segundos).
+        // El user_meta + el store ya tienen los datos reales, no hace falta.
       })
       .catch(() => {
         toast.error('Email o contraseña incorrectos');
@@ -128,7 +130,9 @@ export default function LoginPage() {
       .then((real) => {
         try { localStorage.setItem(`gymfit:lastuser:${FULL_DEMO.email}`, JSON.stringify(real)); } catch {}
         if (!cached) navigateWithTransition(targetForRoles(real.role));
-        router.refresh();
+        // No router.refresh() — disparaba un re-fetch completo del RSC del
+        // panel POST-animacion (cursor "cargando" varios segundos).
+        // El user_meta + el store ya tienen los datos reales, no hace falta.
       })
       .catch(() => {
         toast.error('No se pudo entrar como demo');
