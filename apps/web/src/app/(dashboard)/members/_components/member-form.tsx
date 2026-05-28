@@ -30,6 +30,9 @@ export function MemberForm({ open, memberId, onClose, onSuccess }: MemberFormPro
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [emailUser, setEmailUser] = useState('');
+  // emailUserTouched: el usuario edito el email manualmente -> dejamos de
+  // auto-generarlo desde firstName.lastName. Solo aplica al crear, no al editar.
+  const [emailUserTouched, setEmailUserTouched] = useState(false);
   const [emailDomain, setEmailDomain] = useState('@gym.com');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
@@ -60,20 +63,42 @@ export function MemberForm({ open, memberId, onClose, onSuccess }: MemberFormPro
         setLastName(m.lastName);
         const parts = m.email.split('@');
         setEmailUser(parts[0] || '');
+        setEmailUserTouched(true); // editando: no auto-genere
         setPassword('');
         setPhone(m.phone || '');
         setBranchId(m.branchId ?? '');
       }).catch(() => { toast.error('Error al cargar'); onClose(); });
     } else if (open) {
       setFirstName(''); setLastName(''); setEmailUser(''); setPassword(''); setPhone('');
+      setEmailUserTouched(false); // creando: auto-genera
       // Pre-cargar: sede activa del contexto > única sede activa
       setBranchId(activeCtxBranchId || defaultBranchId || '');
     }
     setErrors({});
   }, [open, memberId, onClose, defaultBranchId]);
 
+  // Convierte 'Luis Damián' -> 'luis.damian' (sin acentos, sin simbolos).
+  const slugifyName = (s: string): string =>
+    s
+      .normalize('NFD')
+      // Quita marcas diacriticas combinantes (acentos): U+0300 a U+036F.
+      .replace(/[̀-ͯ]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, '')
+      .trim()
+      .replace(/\s+/g, '.');
+
   const handleNameChange = (field: 'first' | 'last', value: string) => {
+    const newFirst = field === 'first' ? value : firstName;
+    const newLast = field === 'last' ? value : lastName;
     if (field === 'first') setFirstName(value); else setLastName(value);
+    // Auto-genera emailUser: 'Luis' + 'Damián' -> 'luis.damian'. Solo si NO
+    // editamos y el usuario aun no toco el campo email manualmente.
+    if (!isEditing && !emailUserTouched) {
+      const a = slugifyName(newFirst);
+      const b = slugifyName(newLast);
+      setEmailUser(a && b ? `${a}.${b}` : a || b);
+    }
   };
 
   const fullEmail = `${emailUser}${emailDomain}`;
@@ -192,6 +217,9 @@ export function MemberForm({ open, memberId, onClose, onSuccess }: MemberFormPro
                       // Evita además autocomplete del navegador (admin@gym.com) que rellena con el email del usuario logueado.
                       const v = e.target.value.toLowerCase().replace(/\s/g, '');
                       setEmailUser(v.includes('@') ? v.split('@')[0] : v);
+                      // El usuario edito manualmente -> dejamos de auto-rellenar
+                      // desde firstName.lastName.
+                      setEmailUserTouched(true);
                     }}
                     placeholder="nombre.apellido"
                     autoComplete="off"
