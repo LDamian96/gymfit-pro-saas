@@ -34,6 +34,20 @@ function readCachedUser(email: string): CachedUser | null {
   } catch { return null; }
 }
 
+// Saca un primer nombre presentable del email para mostrarlo en el overlay
+// de carga ANTES de que responda el API. Ej: 'juan.perez@gym.com' -> 'Juan'.
+// Si el email es algo como 'user123@...' o vacio, devuelve ''.
+function guessNameFromEmail(email: string): string {
+  if (!email) return '';
+  const username = (email.split('@')[0] || '').trim();
+  if (!username) return '';
+  const parts = username.split(/[._-]/).filter((p) => p && !/^\d+$/.test(p));
+  if (parts.length === 0) return '';
+  const first = parts[0];
+  if (first.length < 2) return '';
+  return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
+}
+
 // Decide a qué ruta navegar según rol(es).
 function targetForRoles(role: string): string {
   const roles = (role || '').split(',').map((r) => r.trim());
@@ -52,6 +66,10 @@ export default function LoginPage() {
   // isLeaving: dispara la animacion CSS de "subir y desvanecerse" del login
   // INMEDIATO al click. Asi el usuario ve movimiento sin esperar al API.
   const [isLeaving, setIsLeaving] = useState(false);
+  // welcomeName: nombre que aparece en el overlay de carga.
+  // Se llena INSTANTANEO desde el cache (login previo) o del email.
+  // Cuando responde el API real, se actualiza al firstName oficial.
+  const [welcomeName, setWelcomeName] = useState('');
   const { login } = useAuthStore();
   const router = useRouter();
 
@@ -90,6 +108,8 @@ export default function LoginPage() {
     // setea cookie + store + navega INSTANTÁNEO al panel con animación slide-up.
     // El API real corre detrás. Si la contraseña falla, regresa a /login.
     const cached = readCachedUser(email);
+    // Nombre INSTANTANEO para el overlay: cache > heuristica de email.
+    setWelcomeName(cached?.firstName || guessNameFromEmail(email));
     if (cached) {
       const j = encodeURIComponent(JSON.stringify(cached));
       document.cookie = `user_meta=${j};path=/;max-age=60;samesite=lax`;
@@ -101,6 +121,8 @@ export default function LoginPage() {
     login(email, password)
       .then((real) => {
         try { localStorage.setItem(`gymfit:lastuser:${email}`, JSON.stringify(real)); } catch {}
+        // Refresca el nombre con el oficial del API (puede diferir del email).
+        if (real.firstName) setWelcomeName(real.firstName);
         if (!cached) navigateWithTransition(targetForRoles(real.role));
         // No router.refresh() — disparaba un re-fetch completo del RSC del
         // panel POST-animacion (cursor "cargando" varios segundos).
@@ -113,6 +135,7 @@ export default function LoginPage() {
         useAuthStore.setState({ user: null });
         setIsSubmitting(false);
         setIsLeaving(false); // baja el login de vuelta si fallo
+        setWelcomeName('');
         if (cached) router.replace('/login');
       });
   };
@@ -127,6 +150,7 @@ export default function LoginPage() {
     setIsSubmitting(true);
     setIsLeaving(true);
     const cached = readCachedUser(FULL_DEMO.email);
+    setWelcomeName(cached?.firstName || guessNameFromEmail(FULL_DEMO.email));
     if (cached) {
       const j = encodeURIComponent(JSON.stringify(cached));
       document.cookie = `user_meta=${j};path=/;max-age=60;samesite=lax`;
@@ -137,10 +161,8 @@ export default function LoginPage() {
     login(FULL_DEMO.email, FULL_DEMO.password)
       .then((real) => {
         try { localStorage.setItem(`gymfit:lastuser:${FULL_DEMO.email}`, JSON.stringify(real)); } catch {}
+        if (real.firstName) setWelcomeName(real.firstName);
         if (!cached) navigateWithTransition(targetForRoles(real.role));
-        // No router.refresh() — disparaba un re-fetch completo del RSC del
-        // panel POST-animacion (cursor "cargando" varios segundos).
-        // El user_meta + el store ya tienen los datos reales, no hace falta.
       })
       .catch(() => {
         toast.error('No se pudo entrar como demo');
@@ -149,6 +171,7 @@ export default function LoginPage() {
         useAuthStore.setState({ user: null });
         setIsSubmitting(false);
         setIsLeaving(false);
+        setWelcomeName('');
         if (cached) router.replace('/login');
       });
   };
@@ -179,10 +202,22 @@ export default function LoginPage() {
               <Dumbbell className="h-10 w-10 text-white" strokeWidth={2.5} />
             </div>
             <p className="font-code text-[10px] tracking-[0.22em] text-[var(--gym-orange)]">/ AUTENTICANDO</p>
-            <h2 className="font-display text-white text-[34px] leading-[0.95] tracking-tight">
-              Preparando tu experiencia<br />
-              <span className="text-[var(--gym-orange)]">personalizada.</span>
-            </h2>
+            {welcomeName ? (
+              <>
+                <p className="font-code text-[12px] tracking-[0.05em] text-white/70">
+                  Bienvenido <span className="text-white font-bold">{welcomeName}</span>,
+                </p>
+                <h2 className="font-display text-white text-[30px] leading-[0.95] tracking-tight">
+                  estamos preparando tu<br />
+                  experiencia <span className="text-[var(--gym-orange)]">personalizada.</span>
+                </h2>
+              </>
+            ) : (
+              <h2 className="font-display text-white text-[34px] leading-[0.95] tracking-tight">
+                Preparando experiencia<br />
+                <span className="text-[var(--gym-orange)]">personalizada.</span>
+              </h2>
+            )}
             <p className="text-white/50 text-[13px] leading-relaxed mt-1">
               Sincronizando datos de tu gimnasio, sedes y miembros activos.
             </p>
