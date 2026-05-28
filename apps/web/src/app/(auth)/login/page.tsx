@@ -55,24 +55,16 @@ export default function LoginPage() {
   const { login } = useAuthStore();
   const router = useRouter();
 
-  // PREFETCH AGGRESIVO de los chunks JS del panel mientras el usuario tipea.
-  // En redes lentas el panel pesa ~750KB en 16 chunks: si esperamos al click,
-  // son 1-2s de descarga adicional. Prefetcheando aqui (sin esperar cookie),
-  // por el momento del click los chunks ya estan en cache del browser.
-  //
-  // El router.prefetch en App Router descarga TANTO el RSC como los chunks
-  // JS. Si no hay auth, el RSC sera un redirect a /login (cache key URL),
-  // PERO los chunks JS son assets publicos que se cachean igual.
-  // Eso es lo que nos importa: bajar los chunks aqui.
+  // Prefetch SOLO si hay user_meta (sesion previa con cookies validas).
+  // Sin auth, el RSC de /dashboard devuelve redirect a /login, Next.js
+  // cachea ese redirect, y despues del login real la navegacion sigue
+  // el redirect cacheado -> BOUNCE LOOP (usuario tiene que recargar).
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    // Pequeno delay (50ms) para no competir con el render inicial del /login.
-    const id = setTimeout(() => {
-      ['/dashboard', '/routines', '/checkin', '/my-progress'].forEach((p) => {
-        try { router.prefetch(p); } catch { /* noop */ }
-      });
-    }, 50);
-    return () => clearTimeout(id);
+    if (!document.cookie.includes('user_meta=')) return;
+    ['/dashboard', '/routines', '/checkin', '/my-progress'].forEach((p) => {
+      try { router.prefetch(p); } catch { /* noop */ }
+    });
   }, [router]);
 
   const navigateWithTransition = (target: string) => {
