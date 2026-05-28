@@ -27,17 +27,17 @@ body { background-color: inherit; }
    navegan instantáneo sin animación.
    ============================================================ */
 ::view-transition-old(root) {
-  animation: gymfit-slide-up-out 0.32s cubic-bezier(0.4, 0, 0.2, 1) both;
+  animation: gymfit-slide-up-out 0.16s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 ::view-transition-new(root) {
-  animation: gymfit-slide-up-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: gymfit-slide-up-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 @keyframes gymfit-slide-up-out {
   from { transform: translateY(0); opacity: 1; }
-  to { transform: translateY(-12%); opacity: 0; }
+  to { transform: translateY(-6%); opacity: 0; }
 }
 @keyframes gymfit-slide-up-in {
-  from { transform: translateY(20%); opacity: 0; }
+  from { transform: translateY(10%); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
 
@@ -457,7 +457,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 
 /* Page-in: entra el main del panel cuando cambia de ruta */
-.page-in { animation: slideUp 0.4s cubic-bezier(0.16,1,0.3,1) both; }
+.page-in { animation: slideUp 0.22s cubic-bezier(0.16,1,0.3,1) both; }
 
 /* Skeleton shimmer — INVISIBLE en todo el panel admin.
    El usuario prefiere que las cards/registros aparezcan directo con animación

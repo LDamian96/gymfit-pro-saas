@@ -77,11 +77,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <ClientMobileShell>{children}</ClientMobileShell>
       </div>
 
-      {/* Desktop — sidebar + main + campanita fixed top-right */}
+      {/* Desktop — sidebar + main (con topbar admin como primera fila del main).
+          Antes la campanita era fixed top-right y se superponía con el
+          BranchContextBadge "Sede X" del header de cada página. Ahora la
+          campanita vive como una fila propia arriba del contenido. */}
       <div className="hidden md:flex h-screen bg-background text-foreground">
         <Sidebar />
-        <main className="flex-1 ml-[256px] p-8 overflow-y-auto relative">{children}</main>
-        <AdminTopBell />
+        <main className="flex-1 ml-[256px] overflow-y-auto relative">
+          <AdminTopBell />
+          <div className="p-8">{children}</div>
+        </main>
       </div>
 
       <Toaster position="top-right" richColors />
