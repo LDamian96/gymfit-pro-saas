@@ -164,6 +164,30 @@ export default function LoginPage() {
         <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full bg-[var(--gym-lime)] opacity-[0.07] blur-[140px]" />
       </div>
 
+      {/* LOADING OVERLAY — aparece al click, mientras Next.js fetcha el
+          /dashboard RSC + descarga ~750KB de chunks JS. En redes lentas
+          (Latam<->Europa) son ~2-3s. Sin este overlay el usuario solo veria
+          el mesh-bg del login durante todo ese tiempo. */}
+      {isLeaving && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center pointer-events-none"
+          style={{ animation: 'fadeIn 0.4s ease-out 0.25s both' }}
+        >
+          <div className="flex flex-col items-center gap-5">
+            <div className="w-20 h-20 rounded-3xl fire-card flex items-center justify-center shadow-2xl">
+              <Dumbbell className="h-10 w-10 text-white" strokeWidth={2.5} />
+            </div>
+            <p className="label-athletic text-[var(--gym-orange)]">/ Iniciando sesion</p>
+            <h2 className="font-display text-foreground text-[32px] leading-none tracking-tight">
+              Preparando tu gym<span className="text-[var(--gym-orange)]">.</span>
+            </h2>
+            <div className="w-56 h-1 rounded-full bg-secondary overflow-hidden mt-1">
+              <div className="h-full w-1/3 bg-[var(--gym-orange)] animate-[loading-bar_1.2s_ease-in-out_infinite]" />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Wrapper interno que SI se anima al click. El padre con mesh-bg
           se queda visible cubriendo todo, sin gap blanco. */}
       <div className={isLeaving ? 'login-leaving' : ''}>
