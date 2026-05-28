@@ -1,7 +1,24 @@
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, Bebas_Neue, Archivo_Black, JetBrains_Mono } from "next/font/google";
-import { ThemeProvider } from "@/components/providers/theme-provider";
+import { ClientThemeHydrator } from "@/components/providers/theme-hydrator";
 import "./globals.css";
+
+// Script INLINE en <head> — aplica el tema desde localStorage ANTES de
+// cualquier render de React. Sin flicker, sin race condition con
+// useClientTheme. Antes habia DOS sistemas (next-themes + useClientTheme)
+// con defaults distintos compitiendo: por eso a veces el panel salia dark
+// despues de un logout, o algunas partes en otro tema tras navegacion.
+const THEME_INIT_SCRIPT = `
+(function(){
+  try {
+    var t = localStorage.getItem('gymfit-client-theme');
+    if (t !== 'dark' && t !== 'light') t = 'light';
+    document.documentElement.classList.add(t);
+  } catch(e) {
+    document.documentElement.classList.add('light');
+  }
+})();
+`;
 
 // Body — Plus Jakarta para texto general, números tabulares.
 const plusJakarta = Plus_Jakarta_Sans({
@@ -60,6 +77,8 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
+        {/* Tema aplicado SINCRONO antes de cualquier render — sin flicker */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         {/* Pre-conexión al backend → ahorra 100-300ms en el primer fetch */}
         {process.env.NEXT_PUBLIC_API_URL && (
           <link rel="preconnect" href={process.env.NEXT_PUBLIC_API_URL} crossOrigin="use-credentials" />
@@ -71,9 +90,8 @@ export default function RootLayout({
         className={`${plusJakarta.variable} ${archivoBlack.variable} ${bebas.variable} ${jetBrains.variable} antialiased`}
         style={{ fontFamily: "var(--font-jakarta), system-ui, sans-serif" }}
       >
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
+        <ClientThemeHydrator />
+        {children}
       </body>
     </html>
   );

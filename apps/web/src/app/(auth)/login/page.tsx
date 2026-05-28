@@ -174,15 +174,19 @@ export default function LoginPage() {
             animation: 'fadeIn 0.2s ease-out both',
           }}
         >
-          <div className="flex flex-col items-center gap-5" style={{ animation: 'fadeIn 0.3s ease-out 0.15s both' }}>
+          <div className="flex flex-col items-center gap-5 max-w-md text-center px-6" style={{ animation: 'fadeIn 0.3s ease-out 0.15s both' }}>
             <div className="w-20 h-20 rounded-3xl fire-card flex items-center justify-center shadow-2xl">
               <Dumbbell className="h-10 w-10 text-white" strokeWidth={2.5} />
             </div>
-            <p className="font-code text-[10px] tracking-[0.18em] text-[var(--gym-orange)]">/ INICIANDO SESION</p>
-            <h2 className="font-display text-white text-[32px] leading-none tracking-tight">
-              Preparando tu gym<span className="text-[var(--gym-orange)]">.</span>
+            <p className="font-code text-[10px] tracking-[0.22em] text-[var(--gym-orange)]">/ AUTENTICANDO</p>
+            <h2 className="font-display text-white text-[34px] leading-[0.95] tracking-tight">
+              Preparando tu experiencia<br />
+              <span className="text-[var(--gym-orange)]">personalizada.</span>
             </h2>
-            <div className="w-56 h-1 rounded-full bg-white/10 overflow-hidden mt-2 relative">
+            <p className="text-white/50 text-[13px] leading-relaxed mt-1">
+              Sincronizando datos de tu gimnasio, sedes y miembros activos.
+            </p>
+            <div className="w-56 h-1 rounded-full bg-white/10 overflow-hidden mt-3 relative">
               <div className="absolute inset-y-0 w-1/3 bg-[var(--gym-orange)] animate-[loading-bar_1.2s_ease-in-out_infinite]" />
             </div>
           </div>
