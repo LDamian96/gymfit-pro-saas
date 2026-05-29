@@ -5,11 +5,22 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class NotificationsService {
   constructor(private prisma: PrismaService) {}
 
-  // Lista las notificaciones del tenant. Por defecto últimas 50, ordenadas
-  // por creación descendente. El admin las consume para enterarse de eventos
-  // como cross-branch check-ins.
-  async findAll(tenantId: string, onlyUnread = false, limit = 50) {
-    const where: Record<string, unknown> = { tenantId };
+  // Construye el filtro segun rol:
+  // - ADMIN ve TODAS las notificaciones del tenant (las dirigidas a el por userId + las tenant-wide).
+  // - TRAINER/RECEP/CLIENT solo ven las dirigidas a su userId.
+  private buildScope(tenantId: string, userId: string, role: string): Record<string, unknown> {
+    if (role === 'ADMIN') {
+      return {
+        tenantId,
+        OR: [{ userId: null }, { userId }],
+      };
+    }
+    return { tenantId, userId };
+  }
+
+  // Lista las notificaciones del usuario (segun su rol).
+  async findAll(tenantId: string, userId: string, role: string, onlyUnread = false, limit = 50) {
+    const where: Record<string, unknown> = this.buildScope(tenantId, userId, role);
     if (onlyUnread) where.readAt = null;
     return this.prisma.notification.findMany({
       where,
@@ -18,10 +29,9 @@ export class NotificationsService {
     });
   }
 
-  async unreadCount(tenantId: string) {
-    const count = await this.prisma.notification.count({
-      where: { tenantId, readAt: null },
-    });
+  async unreadCount(tenantId: string, userId: string, role: string) {
+    const where: Record<string, unknown> = { ...this.buildScope(tenantId, userId, role), readAt: null };
+    const count = await this.prisma.notification.count({ where });
     return { count };
   }
 
@@ -34,9 +44,9 @@ export class NotificationsService {
     });
   }
 
-  async markAllAsRead(tenantId: string) {
+  async markAllAsRead(tenantId: string, userId: string, role: string) {
     await this.prisma.notification.updateMany({
-      where: { tenantId, readAt: null },
+      where: { ...this.buildScope(tenantId, userId, role), readAt: null },
       data: { readAt: new Date() },
     });
     return { success: true };

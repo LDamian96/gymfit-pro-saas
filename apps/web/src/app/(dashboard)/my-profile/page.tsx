@@ -14,6 +14,12 @@ interface MemberInfo {
   isActive: boolean;
 }
 
+interface StaffQrResponse {
+  qrCode: string;
+  user: { id: string; firstName: string; lastName: string; role: string };
+  branch: { id: string; name: string } | null;
+}
+
 const PLANS: Record<string, string> = { MONTHLY: 'Mensual', QUARTERLY: 'Trimestral', ANNUAL: 'Anual' };
 
 const themeOptions: { id: ClientTheme; label: string; desc: string; preview: { bg: string; accent: string } }[] = [
@@ -25,16 +31,26 @@ export default function MyProfilePage() {
   const { user, logout } = useAuthStore();
   const { theme, setTheme } = useClientTheme();
   const [info, setInfo] = useState<MemberInfo | null>(null);
+  const [staffQr, setStaffQr] = useState<StaffQrResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Roles que ven el QR de staff (no clientes).
+  const isStaff = user?.role && ['ADMIN', 'TRAINER', 'RECEPTIONIST'].some((r) => user.role.split(',').map((x) => x.trim()).includes(r));
+
   const load = useCallback(async () => {
-    if (!user?.memberId) { setLoading(false); return; }
+    setLoading(true);
     try {
-      const m = await cachedGet<unknown>(`/api/v1/members/${user.memberId}`, { ttl: 60_000 });
-      setInfo(unwrap<MemberInfo>(m));
-    } catch {}
+      if (user?.memberId) {
+        const m = await cachedGet<unknown>(`/api/v1/members/${user.memberId}`, { ttl: 60_000 });
+        setInfo(unwrap<MemberInfo>(m));
+      }
+      if (isStaff) {
+        const q = await cachedGet<unknown>('/api/v1/staff-attendance/my-qr', { ttl: 60_000 });
+        setStaffQr(unwrap<StaffQrResponse>(q));
+      }
+    } catch { /* silencioso */ }
     finally { setLoading(false); }
-  }, [user?.memberId]);
+  }, [user?.memberId, isStaff]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -129,6 +145,35 @@ export default function MyProfilePage() {
               {/* Barra de progreso */}
               <div className="mt-4 h-2 rounded-full overflow-hidden cm-surface-2">
                 <div className="h-full cm-accent-bg rounded-full transition-all duration-1000" style={{ width: `${pct}%` }} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* === QR Code del STAFF (TRAINER/RECEP/ADMIN) ===
+            Cualquier otro staff de la misma sede lo puede escanear para
+            tomarle asistencia. */}
+        {staffQr?.qrCode && (
+          <div className="px-4 mt-4 cm-anim-slide" style={{ animationDelay: '0.05s' }}>
+            <div className="cm-card rounded-3xl p-5">
+              <p className="cm-text-dim text-[10px] font-bold uppercase tracking-wider mb-3">
+                Mi QR de asistencia · {staffQr.user.role === 'TRAINER' ? 'Entrenador' : staffQr.user.role === 'RECEPTIONIST' ? 'Recepción' : 'Admin'}
+              </p>
+              <div className="flex items-center gap-4">
+                <div className="bg-white p-2 rounded-2xl shrink-0 relative">
+                  <Image
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(staffQr.qrCode)}&bgcolor=ffffff&color=000000&margin=8&qzone=1`}
+                    alt="QR Staff" width={130} height={130} className="rounded-lg" unoptimized
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-wider cm-text-dim">Tu código</p>
+                  <p className="text-[14px] font-mono font-black mt-1 break-all">{staffQr.qrCode}</p>
+                  <p className="cm-text-muted text-[11px] mt-2 leading-snug">
+                    {staffQr.branch ? `Sede ${staffQr.branch.name}. ` : ''}
+                    Solo otro staff de tu sede puede registrarte.
+                  </p>
+                </div>
               </div>
             </div>
           </div>

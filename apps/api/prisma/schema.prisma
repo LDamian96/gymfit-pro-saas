@@ -61,33 +61,34 @@ enum GamificationType {
 // ============================================================
 
 model Tenant {
-  id        String     @id @default(cuid())
-  name      String
-  slug      String     @unique
-  logo      String?
-  phone     String?
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  logo        String?
+  phone       String?
   email       String?
-  emailDomain String?  @map("email_domain")
+  emailDomain String?    @map("email_domain")
   address     String?
-  plan      TenantPlan @default(FREE)
-  isActive  Boolean    @default(true) @map("is_active")
+  plan        TenantPlan @default(FREE)
+  isActive    Boolean    @default(true) @map("is_active")
 
   // Permisos de POS por rol — admin puede toggle
-  trainerPosEnabled     Boolean @default(true) @map("trainer_pos_enabled")
+  trainerPosEnabled      Boolean @default(true) @map("trainer_pos_enabled")
   receptionistPosEnabled Boolean @default(true) @map("receptionist_pos_enabled")
 
   // Permisos de Membresías (matricular/cobrar) por rol — admin puede toggle
   trainerMembershipEnabled      Boolean @default(false) @map("trainer_membership_enabled")
-  receptionistMembershipEnabled Boolean @default(true)  @map("receptionist_membership_enabled")
+  receptionistMembershipEnabled Boolean @default(true) @map("receptionist_membership_enabled")
 
-  createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime   @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   users              User[]
   branches           Branch[]
   members            Member[]
   payments           Payment[]
   checkIns           CheckIn[]
+  staffCheckIns      StaffCheckIn[]
   routines           Routine[]
   exercises          Exercise[]
   classes            Class[]
@@ -122,6 +123,9 @@ model User {
   avatar       String?
   isActive     Boolean   @default(true) @map("is_active")
   lastLoginAt  DateTime? @map("last_login_at")
+  // QR personal del staff (TRAINER/RECEP/ADMIN) para que otro staff de la
+  // misma sede les tome asistencia. Null para CLIENT (ellos usan Member.qrCode).
+  qrCode       String?   @unique @map("qr_code")
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
   deletedAt    DateTime? @map("deleted_at")
@@ -132,14 +136,17 @@ model User {
   branchId String? @map("branch_id")
   branch   Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
-  member              Member?
-  createdMembers      Member[]        @relation("memberCreatedBy")
-  createdPayments     Payment[]       @relation("paymentCreatedBy")
-  createdProgress     Progress[]      @relation("progressCreatedBy")
-  instructorOf        Class[]         @relation("instructor")
-  scannedCheckIns     CheckIn[]       @relation("scannedBy")
-  trainerRoutines     Routine[]       @relation("trainer")
-  salesBySeller       Sale[]          @relation("salesBySeller")
+  member               Member?
+  createdMembers       Member[]       @relation("memberCreatedBy")
+  createdPayments      Payment[]      @relation("paymentCreatedBy")
+  createdProgress      Progress[]     @relation("progressCreatedBy")
+  instructorOf         Class[]        @relation("instructor")
+  scannedCheckIns      CheckIn[]      @relation("scannedBy")
+  trainerRoutines      Routine[]      @relation("trainer")
+  salesBySeller        Sale[]         @relation("salesBySeller")
+  staffCheckIns        StaffCheckIn[] @relation("staffCheckedIn")
+  scannedStaffCheckIns StaffCheckIn[] @relation("staffScannedBy")
+  notifications        Notification[] @relation("userNotifications")
 
   @@unique([email, tenantId])
   @@index([tenantId])
@@ -162,6 +169,7 @@ model Branch {
   users         User[]
   members       Member[]
   checkIns      CheckIn[]
+  staffCheckIns StaffCheckIn[]
   classes       Class[]
   sales         Sale[]
   productStocks ProductStock[]
@@ -171,21 +179,21 @@ model Branch {
 }
 
 model Member {
-  id               String         @id @default(cuid())
-  qrCode           String         @unique @map("qr_code")
-  membershipType   MembershipType @map("membership_type")
-  membershipStart  DateTime       @map("membership_start")
-  membershipEnd    DateTime       @map("membership_end")
-  isActive         Boolean        @default(true) @map("is_active")
-  emergencyContact String?        @map("emergency_contact")
-  emergencyPhone   String?        @map("emergency_phone")
+  id                  String         @id @default(cuid())
+  qrCode              String         @unique @map("qr_code")
+  membershipType      MembershipType @map("membership_type")
+  membershipStart     DateTime       @map("membership_start")
+  membershipEnd       DateTime       @map("membership_end")
+  isActive            Boolean        @default(true) @map("is_active")
+  emergencyContact    String?        @map("emergency_contact")
+  emergencyPhone      String?        @map("emergency_phone")
   // Límite de visitas por semana (lun-dom). Null = ilimitado. Ej: interdiario = 3, diario = 7.
-  weeklyVisitLimit Int?           @map("weekly_visit_limit")
+  weeklyVisitLimit    Int?           @map("weekly_visit_limit")
   // Tipo de frecuencia elegido al matricular: DAILY | INTERDAILY | CUSTOM | null (ilimitado).
   // Solo informativo/UI — el control real lo hace weeklyVisitLimit en el check-in.
-  membershipFrequency String?     @map("membership_frequency")
-  createdAt        DateTime       @default(now()) @map("created_at")
-  updatedAt        DateTime       @updatedAt @map("updated_at")
+  membershipFrequency String?        @map("membership_frequency")
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
 
   userId String @unique @map("user_id")
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -268,6 +276,36 @@ model CheckIn {
   @@map("check_ins")
 }
 
+// Asistencia del STAFF (TRAINER/RECEP). Cualquier RECEP/TRAINER puede
+// escanear el QR de otro staff PERO solo si son de la misma sede.
+// Validacion same-branch hecha en el servicio. Solo entrada (un registro
+// por scan); duplicados del mismo dia se marcan isDuplicate=true.
+model StaffCheckIn {
+  id          String   @id @default(cuid())
+  timestamp   DateTime @default(now())
+  isDuplicate Boolean  @default(false) @map("is_duplicate")
+
+  // Staff cuyo QR se escaneo (la persona a la que se le toma asistencia).
+  userId String @map("user_id")
+  user   User   @relation("staffCheckedIn", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Sede donde ocurrio el check-in (sede del scanner, validada == sede del staff).
+  branchId String @map("branch_id")
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  // Otro staff que hizo el scan.
+  scannedById String @map("scanned_by_id")
+  scannedBy   User   @relation("staffScannedBy", fields: [scannedById], references: [id])
+
+  tenantId String @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, timestamp])
+  @@index([userId, timestamp])
+  @@index([branchId, timestamp])
+  @@map("staff_check_ins")
+}
+
 model Routine {
   id          String   @id @default(cuid())
   name        String
@@ -346,19 +384,25 @@ model MuscleGroup {
 // Notificaciones para el admin (cross-branch check-in, eventos del sistema, etc.).
 // type categoriza el origen para filtrar/agrupar; payload guarda contexto para el detalle.
 model Notification {
-  id        String   @id @default(cuid())
-  type      String   // ej: 'CROSS_BRANCH_CHECKIN'
+  id        String    @id @default(cuid())
+  type      String // ej: 'CROSS_BRANCH_CHECKIN', 'STAFF_CHECKIN'
   title     String
   message   String
   payload   Json?
   readAt    DateTime? @map("read_at")
   createdAt DateTime  @default(now()) @map("created_at")
 
+  // Destinatario especifico (opcional). Null = tenant-wide (visible para admin).
+  // Non-null = solo el usuario con ese ID la ve en su bell.
+  userId String? @map("user_id")
+  user   User?   @relation("userNotifications", fields: [userId], references: [id], onDelete: Cascade)
+
   tenantId String @map("tenant_id")
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, readAt])
   @@index([tenantId, createdAt])
+  @@index([userId, createdAt])
   @@map("notifications")
 }
 
@@ -529,20 +573,20 @@ model LandingService {
 }
 
 model Plan {
-  id        String   @id @default(cuid())
-  name      String
-  price     Float
-  duration  Int
-  features  String[]
-  isPopular Boolean  @default(false) @map("is_popular")
-  isActive  Boolean  @default(true) @map("is_active")
+  id               String   @id @default(cuid())
+  name             String
+  price            Float
+  duration         Int
+  features         String[]
+  isPopular        Boolean  @default(false) @map("is_popular")
+  isActive         Boolean  @default(true) @map("is_active")
   // Frecuencia de asistencia que otorga este plan. Al matricular un cliente
   // con este plan, su weeklyVisitLimit/membershipFrequency se copian de aquí.
   // frequency: DAILY | INTERDAILY | CUSTOM | UNLIMITED (null = ilimitado).
-  frequency        String? @map("frequency")
-  weeklyVisitLimit Int?    @map("weekly_visit_limit")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  frequency        String?  @map("frequency")
+  weeklyVisitLimit Int?     @map("weekly_visit_limit")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   tenantId String @map("tenant_id")
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -746,7 +790,7 @@ model SalePayment {
   id        String            @id @default(cuid())
   method    SalePaymentMethod
   amount    Float
-  reference String?           // referencia opcional (ej: nro Yape, últimos 4 tarjeta)
+  reference String? // referencia opcional (ej: nro Yape, últimos 4 tarjeta)
   createdAt DateTime          @default(now()) @map("created_at")
 
   saleId String @map("sale_id")

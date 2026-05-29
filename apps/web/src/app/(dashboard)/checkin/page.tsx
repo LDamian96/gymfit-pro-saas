@@ -103,6 +103,33 @@ export default function CheckInPage() {
     setIsScanning(true);
     setScanResult(null);
 
+    // STAFF QR (formato GYM-STAFF-XXXXXXXX) -> endpoint staff-attendance.
+    // Server valida same-branch (salvo admin) y crea notificacion para el escaneado.
+    if (trimmed.toUpperCase().startsWith('GYM-STAFF-')) {
+      try {
+        const res = await api.post('/api/v1/staff-attendance/scan', { qrCode: trimmed });
+        const data = unwrap<{
+          isDuplicate: boolean;
+          user: { firstName: string; lastName: string; role: string };
+          branch: { name: string };
+        }>(res);
+        const name = `${data.user.firstName} ${data.user.lastName}`;
+        const roleLabel = data.user.role === 'TRAINER' ? 'Entrenador' : data.user.role === 'RECEPTIONIST' ? 'Recepción' : data.user.role;
+        if (data.isDuplicate) {
+          toast.warning(`${roleLabel} ${name} — ya registrado hoy`);
+        } else {
+          toast.success(`✓ ${roleLabel} ${name} — asistencia registrada en ${data.branch.name}`);
+        }
+        setQrCode('');
+      } catch (error: unknown) {
+        const err = error as { response?: { data?: { message?: string } } };
+        toast.error(err.response?.data?.message || 'No se pudo registrar el QR del staff');
+      } finally {
+        setIsScanning(false);
+      }
+      return;
+    }
+
     try {
       const res = await api.post('/api/v1/checkin', { qrCode: trimmed, branchId: scanBranchId });
       const checkinData = unwrap<{

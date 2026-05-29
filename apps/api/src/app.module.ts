@@ -9,6 +9,7 @@ import { BranchesModule } from './modules/branches/branches.module';
 import { RoutinesModule } from './modules/routines/routines.module';
 import { ClassesModule } from './modules/classes/classes.module';
 import { CheckinModule } from './modules/checkin/checkin.module';
+import { StaffAttendanceModule } from './modules/staff-attendance/staff-attendance.module';
 import { ProgressModule } from './modules/progress/progress.module';
 import { GamificationModule } from './modules/gamification/gamification.module';
 import { LandingModule } from './modules/landing/landing.module';
@@ -40,6 +41,7 @@ import { TenantSettingsModule } from './modules/tenant-settings/tenant-settings.
     RoutinesModule,
     ClassesModule,
     CheckinModule,
+    StaffAttendanceModule,
     ProgressModule,
     GamificationModule,
     LandingModule,
