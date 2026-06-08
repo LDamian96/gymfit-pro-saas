@@ -72,6 +72,29 @@ model Tenant {
   plan        TenantPlan @default(FREE)
   isActive    Boolean    @default(true) @map("is_active")
 
+  // ============ SEO + AEO (editable desde panel admin) ============
+  // Ubicacion granular para keywords geograficas y schema.org PostalAddress
+  district    String?    @map("district")        // ej: "Surco", "Miraflores", "Ventanilla"
+  city        String?    @map("city")            // ej: "Lima"
+  region      String?    @default("Lima") @map("region")
+  country     String?    @default("PE") @map("country")
+  // Coordenadas para "near me" queries de Google + IA
+  latitude    Float?     @map("latitude")
+  longitude   Float?     @map("longitude")
+  // Redes sociales — schema.org sameAs (IA las usa para verificar identidad)
+  instagramUrl String?   @map("instagram_url")
+  facebookUrl  String?   @map("facebook_url")
+  tiktokUrl    String?   @map("tiktok_url")
+  whatsappNumber String? @map("whatsapp_number")
+  googleMapsUrl String?  @map("google_maps_url")
+  // SEO overrides: si el admin quiere personalizar
+  seoTitle       String? @map("seo_title")
+  seoDescription String? @db.VarChar(300) @map("seo_description")
+  seoKeywords    String? @map("seo_keywords")    // CSV: "gym surco, mejor gym, ..."
+  // Horarios: JSON flexible { mon: {open, close}, ... }
+  openingHours   Json?   @map("opening_hours")
+  // ===============================================================
+
   // Permisos de POS por rol — admin puede toggle
   trainerPosEnabled      Boolean @default(true) @map("trainer_pos_enabled")
   receptionistPosEnabled Boolean @default(true) @map("receptionist_pos_enabled")

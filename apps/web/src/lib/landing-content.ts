@@ -48,6 +48,22 @@ export interface LandingData {
     phone: string | null;
     email: string | null;
     address: string | null;
+    // SEO + AEO fields editables desde panel admin
+    district?: string | null;
+    city?: string | null;
+    region?: string | null;
+    country?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    instagramUrl?: string | null;
+    facebookUrl?: string | null;
+    tiktokUrl?: string | null;
+    whatsappNumber?: string | null;
+    googleMapsUrl?: string | null;
+    seoTitle?: string | null;
+    seoDescription?: string | null;
+    seoKeywords?: string | null;
+    openingHours?: Record<string, { open: string; close: string } | null> | null;
   };
   content: LandingContentItem[];
   services: {

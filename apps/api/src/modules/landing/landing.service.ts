@@ -156,7 +156,17 @@ export class LandingService {
     ]);
 
     return {
-      tenant: { name: tenant.name, slug: tenant.slug, logo: tenant.logo, phone: tenant.phone, email: tenant.email, address: tenant.address },
+      tenant: {
+        name: tenant.name, slug: tenant.slug, logo: tenant.logo,
+        phone: tenant.phone, email: tenant.email, address: tenant.address,
+        district: tenant.district, city: tenant.city, region: tenant.region, country: tenant.country,
+        latitude: tenant.latitude, longitude: tenant.longitude,
+        instagramUrl: tenant.instagramUrl, facebookUrl: tenant.facebookUrl,
+        tiktokUrl: tenant.tiktokUrl, whatsappNumber: tenant.whatsappNumber,
+        googleMapsUrl: tenant.googleMapsUrl,
+        seoTitle: tenant.seoTitle, seoDescription: tenant.seoDescription, seoKeywords: tenant.seoKeywords,
+        openingHours: tenant.openingHours,
+      },
       content,
       services,
       plans,

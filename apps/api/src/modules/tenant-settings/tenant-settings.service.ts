@@ -8,6 +8,38 @@ export interface UpdatePosSettingsDto {
   receptionistMembershipEnabled?: boolean;
 }
 
+export interface UpdateSeoSettingsDto {
+  name?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  logo?: string;
+  district?: string;
+  city?: string;
+  region?: string;
+  country?: string;
+  latitude?: number;
+  longitude?: number;
+  instagramUrl?: string;
+  facebookUrl?: string;
+  tiktokUrl?: string;
+  whatsappNumber?: string;
+  googleMapsUrl?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  seoKeywords?: string;
+  openingHours?: Record<string, { open: string; close: string } | null>;
+}
+
+// Campos que devuelve getSettings + getSeoSettings (compartido en types)
+const SEO_SELECT = {
+  id: true, name: true, slug: true, logo: true, phone: true, email: true, address: true,
+  district: true, city: true, region: true, country: true,
+  latitude: true, longitude: true,
+  instagramUrl: true, facebookUrl: true, tiktokUrl: true, whatsappNumber: true, googleMapsUrl: true,
+  seoTitle: true, seoDescription: true, seoKeywords: true, openingHours: true,
+} as const;
+
 @Injectable()
 export class TenantSettingsService {
   constructor(private prisma: PrismaService) {}
@@ -27,6 +59,42 @@ export class TenantSettingsService {
     });
     if (!tenant) throw new NotFoundException('Tenant no encontrado');
     return tenant;
+  }
+
+  async getSeoSettings(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: SEO_SELECT,
+    });
+    if (!tenant) throw new NotFoundException('Tenant no encontrado');
+    return tenant;
+  }
+
+  async updateSeoSettings(tenantId: string, data: UpdateSeoSettingsDto) {
+    // Solo campos definidos. Empty string = limpiar (null).
+    const clean = (v: string | undefined): string | null | undefined =>
+      v === undefined ? undefined : v.trim() === '' ? null : v.trim();
+
+    const patch: Record<string, unknown> = {};
+    const stringFields: (keyof UpdateSeoSettingsDto)[] = [
+      'name', 'phone', 'email', 'address', 'logo',
+      'district', 'city', 'region', 'country',
+      'instagramUrl', 'facebookUrl', 'tiktokUrl', 'whatsappNumber', 'googleMapsUrl',
+      'seoTitle', 'seoDescription', 'seoKeywords',
+    ];
+    for (const f of stringFields) {
+      const c = clean(data[f] as string | undefined);
+      if (c !== undefined) patch[f] = c;
+    }
+    if (data.latitude !== undefined) patch.latitude = data.latitude;
+    if (data.longitude !== undefined) patch.longitude = data.longitude;
+    if (data.openingHours !== undefined) patch.openingHours = data.openingHours;
+
+    return this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: patch,
+      select: SEO_SELECT,
+    });
   }
 
   async updatePosSettings(tenantId: string, data: UpdatePosSettingsDto) {

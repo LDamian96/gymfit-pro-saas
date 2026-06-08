@@ -46,7 +46,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const data = await getLanding(slug);
   if (!data) return { title: 'No encontrado' };
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://gym.ldmapp.com';
-  const { district, city } = extractLocation(data.tenant.address);
+  // Prioridad: campos editables del admin > extraidos del address legacy
+  const fallback = extractLocation(data.tenant.address);
+  const district = data.tenant.district || fallback.district;
+  const city = data.tenant.city || fallback.city;
 
   // Titulo SEO-optimizado con ubicacion (clave para "gym en X" queries)
   const locationSuffix = district
@@ -54,7 +57,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     : city
       ? ` en ${city}`
       : '';
-  const title = `${data.tenant.name} — Gimnasio${locationSuffix} | Entrenamiento, Coaching y Resultados`;
+  // Si el admin definio un seoTitle personalizado, lo usamos. Sino el generado.
+  const title = data.tenant.seoTitle?.trim()
+    || `${data.tenant.name} — Gimnasio${locationSuffix} | Entrenamiento, Coaching y Resultados`;
 
   // Descripcion factual + completa (AI extrae esto para responder consultas)
   const planMin = data.plans?.length ? Math.min(...data.plans.map((p) => p.price)) : null;
@@ -66,10 +71,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     planMin ? `Membresias desde S/${planMin}.` : null,
     data.tenant.phone ? `Contacto: ${data.tenant.phone}.` : null,
   ].filter(Boolean);
-  const desc = descParts.join(' ');
+  // Si el admin definio una seoDescription propia, prevalece
+  const desc = data.tenant.seoDescription?.trim() || descParts.join(' ');
 
-  // Keywords amplias: geograficas + de servicio + comerciales + AI queries
-  const keywords = [
+  // Keywords: combina auto-generadas + custom del admin
+  const autoKeywords = [
     `gimnasio ${district || city || ''}`.trim(),
     `gym ${district || city || ''}`.trim(),
     `mejor gimnasio ${district || city || ''}`.trim(),
@@ -81,6 +87,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     'clases grupales', 'rutinas de gym', 'nutricion deportiva',
     'membresia gimnasio', 'planes de gym',
   ].filter((k) => k.length > 3);
+  // Custom del admin (CSV) + auto-generadas
+  const customKeywords = (data.tenant.seoKeywords || '')
+    .split(',').map((k) => k.trim()).filter(Boolean);
+  const keywords = [...new Set([...customKeywords, ...autoKeywords])];
 
   return {
     title,

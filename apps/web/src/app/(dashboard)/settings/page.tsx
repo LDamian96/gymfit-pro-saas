@@ -57,7 +57,15 @@ export default function SettingsPage() {
   return (
     <div className="md:space-y-6">
       <div className="reveal-up">
-        <Header eyebrow="Sistema" title="Configuración" description="Datos del gimnasio y preferencias generales" />
+        <Header eyebrow="Sistema" title="Configuración" description="Datos del gimnasio y preferencias generales">
+          <Link
+            href="/settings/seo"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--gym-orange)] text-white text-[12px] font-bold hover:opacity-90 transition-opacity"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            SEO & Visibilidad IA
+          </Link>
+        </Header>
       </div>
 
       {/* MOBILE header */}

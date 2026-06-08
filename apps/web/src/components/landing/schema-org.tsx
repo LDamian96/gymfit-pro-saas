@@ -29,9 +29,41 @@ function extractLocation(address?: string | null): { street: string | null; dist
   };
 }
 
+// Convierte el JSON de openingHours { mon: {open: '06:00', close: '22:00'}, ... }
+// al formato schema.org OpeningHoursSpecification.
+function buildOpeningHours(oh?: Record<string, { open: string; close: string } | null> | null) {
+  const dayMap: Record<string, string> = {
+    mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday',
+    fri: 'Friday', sat: 'Saturday', sun: 'Sunday',
+  };
+  if (!oh || typeof oh !== 'object') {
+    // Defaults: Lun-Vie 6-22, Sab 7-20, Dom 8-14
+    return [
+      { '@type': 'OpeningHoursSpecification', dayOfWeek: ['Monday','Tuesday','Wednesday','Thursday','Friday'], opens: '06:00', closes: '22:00' },
+      { '@type': 'OpeningHoursSpecification', dayOfWeek: ['Saturday'], opens: '07:00', closes: '20:00' },
+      { '@type': 'OpeningHoursSpecification', dayOfWeek: ['Sunday'], opens: '08:00', closes: '14:00' },
+    ];
+  }
+  return Object.entries(oh)
+    .filter(([, v]) => v && v.open && v.close)
+    .map(([k, v]) => ({
+      '@type': 'OpeningHoursSpecification',
+      dayOfWeek: dayMap[k] || k,
+      opens: v!.open,
+      closes: v!.close,
+    }));
+}
+
 export function SchemaOrg({ data, slug, baseUrl }: Props) {
   const url = `${baseUrl}/${slug}`;
-  const loc = extractLocation(data.tenant.address);
+  // Prioridad: campos editables del admin > extraidos del address legacy
+  const fallback = extractLocation(data.tenant.address);
+  const loc = {
+    street: fallback.street,
+    district: data.tenant.district || fallback.district,
+    city: data.tenant.city || fallback.city || 'Lima',
+    region: data.tenant.region || 'Lima',
+  };
   const planMin = data.plans?.length ? Math.min(...data.plans.map((p) => p.price)) : null;
   const planMax = data.plans?.length ? Math.max(...data.plans.map((p) => p.price)) : null;
   const priceRange = planMin && planMax ? `S/${planMin} - S/${planMax}` : 'S/$$';
@@ -54,16 +86,21 @@ export function SchemaOrg({ data, slug, baseUrl }: Props) {
           '@type': 'PostalAddress',
           streetAddress: loc.street,
           addressLocality: loc.district,
-          addressRegion: loc.city,
-          addressCountry: 'PE',
+          addressRegion: loc.region || loc.city,
+          addressCountry: data.tenant.country || 'PE',
         }
       : undefined,
-    // Horario tipico de gym — el admin puede ajustar despues
-    openingHoursSpecification: [
-      { '@type': 'OpeningHoursSpecification', dayOfWeek: ['Monday','Tuesday','Wednesday','Thursday','Friday'], opens: '06:00', closes: '22:00' },
-      { '@type': 'OpeningHoursSpecification', dayOfWeek: ['Saturday'], opens: '07:00', closes: '20:00' },
-      { '@type': 'OpeningHoursSpecification', dayOfWeek: ['Sunday'], opens: '08:00', closes: '14:00' },
-    ],
+    // Coordenadas para "near me" queries de Google + IA
+    geo: data.tenant.latitude && data.tenant.longitude
+      ? {
+          '@type': 'GeoCoordinates',
+          latitude: data.tenant.latitude,
+          longitude: data.tenant.longitude,
+        }
+      : undefined,
+    hasMap: data.tenant.googleMapsUrl || undefined,
+    // Horarios — editable desde admin, default si no esta seteado
+    openingHoursSpecification: buildOpeningHours(data.tenant.openingHours),
     // Facilities como amenityFeature (clave para IA: "qué tiene este gym")
     amenityFeature: data.facilities?.map((f) => ({
       '@type': 'LocationFeatureSpecification',
@@ -95,7 +132,13 @@ export function SchemaOrg({ data, slug, baseUrl }: Props) {
       availability: 'https://schema.org/InStock',
       url,
     })) || [],
-    sameAs: [], // si agregas redes sociales del gym, van aqui
+    // sameAs: redes sociales — IA las usa para verificar identidad del negocio
+    sameAs: [
+      data.tenant.instagramUrl,
+      data.tenant.facebookUrl,
+      data.tenant.tiktokUrl,
+      data.tenant.whatsappNumber ? `https://wa.me/${data.tenant.whatsappNumber.replace(/\D/g, '')}` : null,
+    ].filter(Boolean),
   };
 
   // Schema 2: FAQ — las IAs aman las FAQs para extraer respuestas directas

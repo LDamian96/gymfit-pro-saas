@@ -1,6 +1,6 @@
 import { Controller, Get, Patch, Body, UseGuards } from '@nestjs/common';
 import { TenantSettingsService } from './tenant-settings.service';
-import type { UpdatePosSettingsDto } from './tenant-settings.service';
+import type { UpdatePosSettingsDto, UpdateSeoSettingsDto } from './tenant-settings.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -23,5 +23,20 @@ export class TenantSettingsController {
   @Roles('ADMIN')
   updatePos(@CurrentUser('tenantId') tenantId: string, @Body() body: UpdatePosSettingsDto) {
     return this.service.updatePosSettings(tenantId, body);
+  }
+
+  // SEO + AEO settings (lectura solo admin para no exponer detalles privados como lat/lng)
+  @Get('seo')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  getSeo(@CurrentUser('tenantId') tenantId: string) {
+    return this.service.getSeoSettings(tenantId);
+  }
+
+  @Patch('seo')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  updateSeo(@CurrentUser('tenantId') tenantId: string, @Body() body: UpdateSeoSettingsDto) {
+    return this.service.updateSeoSettings(tenantId, body);
   }
 }
