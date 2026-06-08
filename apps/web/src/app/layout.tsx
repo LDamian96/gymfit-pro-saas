@@ -14,6 +14,14 @@ const THEME_INIT_SCRIPT = `
     var t = localStorage.getItem('gymfit-client-theme');
     if (t !== 'dark' && t !== 'light') t = 'light';
     document.documentElement.classList.add(t);
+    // Sincroniza la barra del navegador (URL/status bar) con el tema
+    // ANTES de render para evitar flicker entre light->dark al cargar.
+    var col = t === 'dark' ? '#0A0B0D' : '#F7F5F1';
+    var m = document.querySelector('meta[name="theme-color"]:not([media])');
+    if (!m) { m = document.createElement('meta'); m.name = 'theme-color'; document.head.appendChild(m); }
+    m.content = col;
+    // Sobreescribe las variantes con media (las que mete Next del viewport)
+    document.querySelectorAll('meta[name="theme-color"][media]').forEach(function(x){ x.content = col; });
   } catch(e) {
     document.documentElement.classList.add('light');
   }
