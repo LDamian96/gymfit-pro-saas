@@ -7,8 +7,9 @@
 
 ## Reglas Absolutas
 - Después de CADA implementación o modificación de código, SIEMPRE dar las URLs:
-  - **Dashboard:** `http://72.60.251.43:3010/login`
-  - **Landing:** `http://72.60.251.43:3010/gymfit-pro`
+  - **Dashboard:** `https://gym.ldmapp.com/login`
+  - **Landing:** `https://gym.ldmapp.com/gymfit-pro`
+  - (VPS producción: Contabo 62.146.228.180 — el viejo 72.60.251.43 quedó fuera de servicio)
 - NUNCA tocar build, dist, .next, node_modules
 - NUNCA especificar versiones al instalar paquetes (`npm i next` NO `npm i next@14.2.3`)
 - NUNCA usar `any` en TypeScript — siempre tipos explícitos
