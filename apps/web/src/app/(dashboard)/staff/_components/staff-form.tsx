@@ -13,6 +13,18 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Building } from 'lucide-react';
 import { useBranches } from '@/hooks/use-branches';
 import { useBranchContext } from '@/stores/branch-context-store';
+import { api } from '@/lib/api';
+
+// 'Luis Damián' -> 'luis.damian' (sin acentos ni simbolos) — mismo criterio
+// que el form de clientes para el email auto-generado.
+const slugifyName = (s: string): string =>
+  s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .trim()
+    .replace(/\s+/g, '.');
 
 // Roles disponibles para el personal
 type StaffRole = 'RECEPTIONIST' | 'TRAINER';
@@ -63,7 +75,21 @@ export function StaffForm({ open, onOpenChange, onSubmit, staff }: StaffFormProp
   const ctxBranch = activeBranches.find((b) => b.id === activeCtxBranchId);
   const [form, setForm] = useState<StaffFormData>(INITIAL_FORM);
   const [loading, setLoading] = useState(false);
+  // Email auto-generado desde nombre.apellido@dominio hasta que el admin lo
+  // toque manualmente. Solo al crear (no al editar).
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [emailDomain, setEmailDomain] = useState('@gym.com');
   const isEditing = !!staff;
+
+  // Dominio configurado en Configuracion (mismo endpoint que member-form)
+  useEffect(() => {
+    api.get('/api/v1/dashboard/settings').then((res) => {
+      const data = (res as unknown as { data: { emailDomain: string | null } }).data;
+      if (data?.emailDomain) {
+        setEmailDomain(data.emailDomain.startsWith('@') ? data.emailDomain : '@' + data.emailDomain);
+      }
+    }).catch(() => { /* usa default */ });
+  }, []);
 
   // Si hay sede activa del contexto global, no se pide manualmente.
   // Solo se pide cuando el admin está en "Todas".
@@ -86,6 +112,8 @@ export function StaffForm({ open, onOpenChange, onSubmit, staff }: StaffFormProp
       // Pre-cargar: sede activa del contexto > única sede activa
       setForm({ ...INITIAL_FORM, branchId: activeCtxBranchId || defaultBranchId || '' });
     }
+    // Al abrir para crear: email vuelve a auto-generarse. Al editar: no tocar.
+    setEmailTouched(!!staff);
   }, [staff, open, defaultBranchId, activeCtxBranchId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -104,7 +132,19 @@ export function StaffForm({ open, onOpenChange, onSubmit, staff }: StaffFormProp
   };
 
   const updateField = (field: keyof StaffFormData, value: string) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [field]: value };
+      // Auto-genera email desde nombre + apellido mientras el admin no lo
+      // haya editado a mano (solo al crear).
+      if ((field === 'firstName' || field === 'lastName') && !isEditing && !emailTouched) {
+        const a = slugifyName(field === 'firstName' ? value : prev.firstName);
+        const b = slugifyName(field === 'lastName' ? value : prev.lastName);
+        const user = a && b ? `${a}.${b}` : a || b;
+        next.email = user ? `${user}${emailDomain}` : '';
+      }
+      if (field === 'email') setEmailTouched(true);
+      return next;
+    });
   };
 
   return (

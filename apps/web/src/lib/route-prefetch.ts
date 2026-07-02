@@ -28,11 +28,13 @@ const ROUTE_DATA: Record<string, { url: string; params?: Record<string, unknown>
   '/shop': [{ url: '/api/v1/products' }],
   '/brands': [{ url: '/api/v1/brands' }],
   '/product-categories': [{ url: '/api/v1/product-categories' }],
-  '/landing': [{ url: '/api/v1/landing/me' }],
-  '/landing/services': [{ url: '/api/v1/landing/services' }],
-  '/landing/plans': [{ url: '/api/v1/landing/plans' }],
-  '/landing/facilities': [{ url: '/api/v1/landing/facilities' }],
-  '/landing/faq': [{ url: '/api/v1/landing/faq' }],
+  // Endpoints admin del landing (los /api/v1/landing/* NO existen — el
+  // backend los interpretaba como slug publico -> 404 en cada visita)
+  '/landing': [{ url: '/api/v1/admin/landing' }],
+  '/landing/services': [{ url: '/api/v1/admin/services' }],
+  '/landing/plans': [{ url: '/api/v1/admin/plans' }],
+  '/landing/facilities': [{ url: '/api/v1/admin/facilities' }],
+  '/landing/faq': [{ url: '/api/v1/admin/faq' }],
 };
 
 const prefetched = new Set<string>();
