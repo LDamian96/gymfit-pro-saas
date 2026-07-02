@@ -10,6 +10,16 @@ export class UpdateMemberDto {
   @IsString()
   lastName?: string;
 
+  // El admin puede corregir el email o resetear la contraseña del cliente
+  // desde el modal de edicion. Ambos opcionales.
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  password?: string;
+
   @IsOptional()
   @IsString()
   phone?: string;

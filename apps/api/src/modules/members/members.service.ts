@@ -243,6 +243,19 @@ export class MembersService {
       if (dto.firstName) userData.firstName = dto.firstName;
       if (dto.lastName) userData.lastName = dto.lastName;
       if (dto.phone !== undefined) userData.phone = dto.phone;
+      // Email: solo si cambio y no colisiona con otro usuario del tenant.
+      if (dto.email && dto.email !== member.user.email) {
+        const dupe = await tx.user.findFirst({
+          where: { email: dto.email, tenantId, deletedAt: null, NOT: { id: member.userId } },
+          select: { id: true },
+        });
+        if (dupe) throw new ConflictException('Ya existe un usuario con ese email');
+        userData.email = dto.email;
+      }
+      // Password: si viene, re-hashea (bcrypt 10 rondas como el resto).
+      if (dto.password && dto.password.length >= 6) {
+        userData.passwordHash = await bcrypt.hash(dto.password, 10);
+      }
 
       if (Object.keys(userData).length > 0) {
         await tx.user.update({
