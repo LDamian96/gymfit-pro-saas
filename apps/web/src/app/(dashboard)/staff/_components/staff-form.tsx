@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Building } from 'lucide-react';
 import { useBranches } from '@/hooks/use-branches';
 import { useBranchContext } from '@/stores/branch-context-store';
-import { api } from '@/lib/api';
+import { cachedGet } from '@/lib/api';
 
 // 'Luis Damián' -> 'luis.damian' (sin acentos ni simbolos) — mismo criterio
 // que el form de clientes para el email auto-generado.
@@ -83,7 +83,7 @@ export function StaffForm({ open, onOpenChange, onSubmit, staff }: StaffFormProp
 
   // Dominio configurado en Configuracion (mismo endpoint que member-form)
   useEffect(() => {
-    api.get('/api/v1/dashboard/settings').then((res) => {
+    cachedGet('/api/v1/dashboard/settings', { ttl: 60_000 }).then((res) => {
       const data = (res as unknown as { data: { emailDomain: string | null } }).data;
       if (data?.emailDomain) {
         setEmailDomain(data.emailDomain.startsWith('@') ? data.emailDomain : '@' + data.emailDomain);

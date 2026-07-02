@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { User, Mail, Phone, Lock, Check, X, Building } from 'lucide-react';
-import { api, invalidateCache } from '@/lib/api';
+import { api, cachedGet, invalidateCache } from '@/lib/api';
 import { useBranches } from '@/hooks/use-branches';
 import { useBranchContext } from '@/stores/branch-context-store';
 
@@ -47,7 +47,7 @@ export function MemberForm({ open, memberId, onClose, onSuccess }: MemberFormPro
 
   // Cargar dominio configurado
   useEffect(() => {
-    api.get('/api/v1/dashboard/settings').then((res) => {
+    cachedGet('/api/v1/dashboard/settings', { ttl: 60_000 }).then((res) => {
       const data = (res as unknown as { data: { emailDomain: string | null } }).data;
       if (data?.emailDomain) {
         setEmailDomain(data.emailDomain.startsWith('@') ? data.emailDomain : '@' + data.emailDomain);

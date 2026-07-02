@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Plus, Pencil, Trash2, Upload, ShoppingBag, Tag as TagIcon, Package, Eye, EyeOff, Store, UserCheck, ChevronLeft, ChevronRight, ArrowLeftRight } from 'lucide-react';
 import { Header } from '@/components/dashboard/header';
-import { api, unwrap } from '@/lib/api';
+import { api, cachedGet, unwrap } from '@/lib/api';
 import { useBranches } from '@/hooks/use-branches';
 import { useBranchContext } from '@/stores/branch-context-store';
 import { BranchContextBadge } from '@/components/dashboard/branch-context-switcher';
@@ -88,12 +88,16 @@ export default function ShopAdminPage() {
   const [transferring, setTransferring] = useState(false);
 
   const fetchAll = useCallback(async (bId?: string) => {
-    // Fetch independiente — si una falla las otras siguen
+    // Fetch independiente — si una falla las otras siguen.
+    // brands/categories/settings via cachedGet: el layout monta la pagina
+    // 2 veces (mobile+desktop) y esto comparte UNA request por endpoint.
+    // Products queda en api.get directo para que el refetch tras crear/editar
+    // siempre traiga datos frescos.
     const productUrl = bId ? `/api/v1/products?branchId=${bId}` : '/api/v1/products';
     api.get(productUrl).then((r) => setProducts(unwrap<Product[]>(r) || [])).catch(() => setProducts([]));
-    api.get('/api/v1/brands').then((r) => setBrands(unwrap<Brand[]>(r) || [])).catch(() => setBrands([]));
-    api.get('/api/v1/product-categories').then((r) => setCategories(unwrap<Category[]>(r) || [])).catch(() => setCategories([]));
-    api.get('/api/v1/tenant/settings').then((r) => {
+    cachedGet('/api/v1/brands', { ttl: 15_000 }).then((r) => setBrands(unwrap<Brand[]>(r) || [])).catch(() => setBrands([]));
+    cachedGet('/api/v1/product-categories', { ttl: 15_000 }).then((r) => setCategories(unwrap<Category[]>(r) || [])).catch(() => setCategories([]));
+    cachedGet('/api/v1/tenant/settings', { ttl: 30_000 }).then((r) => {
       const d = unwrap<{
         trainerPosEnabled: boolean; receptionistPosEnabled: boolean;
         trainerMembershipEnabled: boolean; receptionistMembershipEnabled: boolean;

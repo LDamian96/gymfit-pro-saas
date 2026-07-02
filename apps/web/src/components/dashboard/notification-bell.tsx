@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Bell, Building, AlertTriangle, X, AlertOctagon, UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
-import { api } from '@/lib/api';
+import { api, cachedGet, invalidateCache } from '@/lib/api';
 
 interface Notification {
   id: string;
@@ -33,11 +33,13 @@ export function NotificationBell() {
 
   const fetchCount = useCallback(async () => {
     try {
-      const res = await api.get('/api/v1/notifications/unread-count');
+      // cachedGet dedupe: el layout monta la campana 2 veces (mobile+desktop),
+      // asi ambas instancias comparten UNA sola request por poll.
+      const res = await cachedGet('/api/v1/notifications/unread-count', { ttl: 10_000 });
       const body = res as unknown as { data?: { count: number } };
       setUnread(body.data?.count ?? 0);
       // Trae también los últimos para detectar IDs nuevos.
-      const listRes = await api.get('/api/v1/notifications?unread=true&limit=5');
+      const listRes = await cachedGet('/api/v1/notifications?unread=true&limit=5', { ttl: 10_000 });
       const listBody = listRes as unknown as { data?: Notification[] };
       const list = Array.isArray(listBody.data) ? listBody.data : [];
       if (!armedRef.current) {
@@ -95,6 +97,7 @@ export function NotificationBell() {
   const markAllRead = async () => {
     try {
       await api.patch('/api/v1/notifications/read-all');
+      invalidateCache('/api/v1/notifications'); // proximo poll trae fresco
       setUnread(0);
       setItems((prev) => prev.map((n) => ({ ...n, readAt: n.readAt ?? new Date().toISOString() })));
     } catch { /* ignore */ }
@@ -103,6 +106,7 @@ export function NotificationBell() {
   const markRead = async (id: string) => {
     try {
       await api.patch(`/api/v1/notifications/${id}/read`);
+      invalidateCache('/api/v1/notifications');
       setItems((prev) => prev.map((n) => n.id === id ? { ...n, readAt: new Date().toISOString() } : n));
       setUnread((c) => Math.max(0, c - 1));
     } catch { /* ignore */ }
