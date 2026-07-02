@@ -19,14 +19,16 @@ export class MuscleGroupsController {
     return this.service.findAll(tenantId);
   }
 
+  // TRAINER tambien crea/edita musculos (los necesita para armar ejercicios
+  // y rutinas). Eliminar queda solo para ADMIN.
   @Post()
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'TRAINER')
   create(@Body() dto: CreateMuscleGroupDto, @CurrentUser('tenantId') tenantId: string) {
     return this.service.create(dto, tenantId);
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'TRAINER')
   update(
     @Param('id') id: string,
     @Body() dto: UpdateMuscleGroupDto,
