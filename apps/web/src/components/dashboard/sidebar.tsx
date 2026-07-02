@@ -139,16 +139,21 @@ export function Sidebar() {
   const roleList = userRole.split(',').map((r) => r.trim());
   const isAdmin = roleList.includes('ADMIN');
 
-  // Permiso de Membresías para Recep/Trainer según setting del tenant.
+  // Permisos de Membresías y POS para Recep/Trainer según settings del tenant.
   const [memb, setMemb] = useState<{ trainer: boolean; recep: boolean } | null>(null);
+  const [posPerm, setPosPerm] = useState<{ trainer: boolean; recep: boolean } | null>(null);
   useEffect(() => {
     if (isAdmin || (!roleList.includes('RECEPTIONIST') && !roleList.includes('TRAINER'))) return;
     cachedGet<unknown>('/api/v1/tenant/settings', { ttl: 60_000 })
       .then((r) => {
-        const d = unwrap<{ trainerMembershipEnabled?: boolean; receptionistMembershipEnabled?: boolean }>(r);
+        const d = unwrap<{
+          trainerMembershipEnabled?: boolean; receptionistMembershipEnabled?: boolean;
+          trainerPosEnabled?: boolean; receptionistPosEnabled?: boolean;
+        }>(r);
         setMemb({ trainer: !!d?.trainerMembershipEnabled, recep: !!d?.receptionistMembershipEnabled });
+        setPosPerm({ trainer: !!d?.trainerPosEnabled, recep: !!d?.receptionistPosEnabled });
       })
-      .catch(() => setMemb(null));
+      .catch(() => { setMemb(null); setPosPerm(null); });
   }, [isAdmin, userRole]); // eslint-disable-line react-hooks/exhaustive-deps
 
   let filteredMain = filterByRole(mainNav, userRole);
@@ -159,6 +164,16 @@ export function Sidebar() {
   if (canMembership && !filteredMain.some((i) => i.href === '/finances')) {
     const fin = mainNav.find((i) => i.href === '/finances');
     if (fin) filteredMain = [...filteredMain, fin];
+  }
+  // Ocultar Vender/Ventas si el rol NO tiene permiso de POS. La pagina /pos
+  // ya bloquea el acceso directo; esto evita mostrar un link que rebota.
+  if (!isAdmin && posPerm) {
+    const canPos =
+      (roleList.includes('RECEPTIONIST') && posPerm.recep) ||
+      (roleList.includes('TRAINER') && posPerm.trainer);
+    if (!canPos) {
+      filteredMain = filteredMain.filter((i) => i.href !== '/pos' && i.href !== '/sales');
+    }
   }
   const filteredLanding = filterByRole(landingNav, userRole);
   const showLanding = filteredLanding.length > 0;
