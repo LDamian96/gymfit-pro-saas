@@ -48,11 +48,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   // 3) Fallback: si user_meta no se pudo parsear pero tenemos access_token, fetch /auth/me.
+  //    Sin cache (no-store): el cache de fetch por-URL de Next ignoraba la
+  //    cookie y podia servir una respuesta stale/fallida a todos los usuarios.
   if (!user && accessToken) {
     try {
       const res = await fetch(`${API_URL}/api/v1/auth/me`, {
         headers: { Cookie: `access_token=${accessToken}` },
-        next: { revalidate: 60, tags: [`user-${accessToken.slice(-12)}`] },
+        cache: 'no-store',
       });
       if (res.ok) {
         const json = await res.json();
