@@ -78,22 +78,37 @@ export function middleware(req: NextRequest) {
   if (!isControlled) return NextResponse.next();
 
   const token = req.cookies.get('access_token')?.value;
+  const userMeta = req.cookies.get('user_meta')?.value;
   let rolesFromAuth: string = '';
 
+  // Rol desde user_meta (cookie legible por el server, set en cada login).
+  // Es la fuente MÁS confiable — no depende de decodificar el JWT en el
+  // runtime Edge (donde atob/decode puede comportarse distinto).
+  const roleFromMeta = (): string => {
+    if (!userMeta) return '';
+    try {
+      const obj = JSON.parse(decodeURIComponent(userMeta)) as { role?: string };
+      return obj.role || '';
+    } catch { return ''; }
+  };
+
   if (token) {
+    // Preferimos el rol del JWT; si el decode falla (o viene vacío),
+    // caemos al rol de user_meta. Antes: decode fallaba -> rol '' ->
+    // redirect a /login aun con sesión válida (bug de login demo).
     const decoded = decodeJwt(token);
-    rolesFromAuth = decoded?.role || '';
+    rolesFromAuth = decoded?.role || roleFromMeta();
+    if (!rolesFromAuth) {
+      // Token presente pero no pudimos leer el rol por ningún medio:
+      // dejar pasar y que el layout SSR (que sí verifica /auth/me) decida.
+      return NextResponse.next();
+    }
   } else {
-    // AUTH OPTIMISTA — si access_token no existe pero auth_pending=1 y user_meta presente,
-    // el cliente está en transición de login. Permitir paso temporal usando rol de user_meta.
-    // Esto deja que el panel se vea INSTANT, mientras el access_token real se asienta.
+    // AUTH OPTIMISTA — sin access_token pero auth_pending=1 y user_meta:
+    // el cliente está en transición de login, permitir paso temporal.
     const pending = req.cookies.get('auth_pending')?.value;
-    const userMeta = req.cookies.get('user_meta')?.value;
     if (pending === '1' && userMeta) {
-      try {
-        const obj = JSON.parse(decodeURIComponent(userMeta)) as { role?: string };
-        rolesFromAuth = obj.role || '';
-      } catch { rolesFromAuth = ''; }
+      rolesFromAuth = roleFromMeta();
     }
     if (!rolesFromAuth) {
       return NextResponse.redirect(new URL('/login', req.url));
