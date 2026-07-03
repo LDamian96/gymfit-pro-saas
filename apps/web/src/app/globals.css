@@ -465,6 +465,11 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
 }
+/* Barra fina de cambio de ruta — cruza el ancho del contenido de lado a lado */
+@keyframes route-bar {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
 
 /* Cue visual del LOGIN al click — sube INMEDIATO, sin esperar al API.
    NO se desvanece (opacity), porque al desaparecer dejaba ver el fondo
